@@ -1818,7 +1818,8 @@ export default function VirtualTryOn() {
                 isMobileView ? "" : "hidden"
               }`}
               style={{
-                paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+                paddingBottom:
+                  "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
               }}
             >
               <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
@@ -2224,7 +2225,10 @@ export default function VirtualTryOn() {
         {started && !snapshot && !compareEnabled && (
           <div
             className="absolute inset-x-0 bottom-0 pt-5 pb-5 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.25rem)" }}
+            style={{
+              paddingBottom:
+                "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)",
+            }}
           >
             <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
               <div className="w-full max-w-4xl flex flex-col items-center gap-2.5">
