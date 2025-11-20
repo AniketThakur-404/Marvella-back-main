@@ -76,7 +76,7 @@ const ONLY_HIDE_ON_HAND = true;
 
 // NEW: limit how far lips are allowed to “jump” between frames
 // (fraction of frame diagonal). If exceeded, we keep previous lips.
-const MAX_LIP_JUMP_NORM = 0.06;
+const MAX_LIP_JUMP_NORM = 0.12;
 
 const MASK_EASE_ALPHA = 0.86;
 const FEATHER_EMA_ALPHA = 0.25;
