@@ -1562,7 +1562,10 @@ export default function VirtualTryOn() {
   const showCompareHelper = comparePickerOpen || rightShade?.id === 0;
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-black text-white font-sans overflow-hidden touch-manipulation select-none">
+    <div
+      className="fixed inset-0 w-screen h-screen bg-black text-white font-sans overflow-hidden touch-manipulation select-none"
+      style={{ minHeight: "100dvh" }}
+    >
       <div className="relative w-full h-full bg-black">
         <video ref={videoRef} className="hidden" playsInline muted autoPlay />
         <canvas
@@ -1814,47 +1817,52 @@ export default function VirtualTryOn() {
               className={`absolute inset-x-0 bottom-0 z-40 pointer-events-auto ${
                 isMobileView ? "" : "hidden"
               }`}
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
               <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
                 <div className="relative w-full max-w-[96vw] rounded-[26px] bg-black/90 border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 py-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-10 w-10 rounded-full border border-white/30 bg-black/40">
-                        <span
-                          className="h-7 w-7 rounded-full border border-white/40"
-                          style={{
-                            backgroundColor:
-                              leftShade.color === "transparent"
-                                ? "#6f6f6f"
-                                : leftShade.color,
-                          }}
-                          aria-hidden="true"
-                        />
-                      </span>
-                      <div>
-                        <div className="text-sm font-semibold text-white">
-                          {leftShadeLine}
-                        </div>
-                        <div className="text-[10px] text-white/70">
-                          {leftShade.color === "transparent"
-                            ? "Live tone"
-                            : leftShade.color.toUpperCase()}
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-10 w-10 rounded-full border border-white/30 bg-black/40">
+                          <span
+                            className="h-7 w-7 rounded-full border border-white/40"
+                            style={{
+                              backgroundColor:
+                                leftShade.color === "transparent"
+                                  ? "#6f6f6f"
+                                  : leftShade.color,
+                            }}
+                            aria-hidden="true"
+                          />
+                        </span>
+                        <div>
+                          <div className="text-sm font-semibold text-white">
+                            {leftShadeLine}
+                          </div>
+                          <div className="text-[10px] text-white/70">
+                            {leftShade.color === "transparent"
+                              ? "Live tone"
+                              : leftShade.color.toUpperCase()}
+                          </div>
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setComparePickerOpen((prev) => !prev)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white"
+                        aria-label="Add another shade"
+                      >
+                        <span className="text-[22px] leading-none">
+                          {comparePickerOpen ? "—" : "+"}
+                        </span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setComparePickerOpen(true)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white"
-                      aria-label="Add another shade"
-                    >
-                      <span className="text-[22px] leading-none">+</span>
-                    </button>
-                  </div>
 
-                  <div className="text-center text-[11px] uppercase tracking-[0.3em] text-white/80">
-                    Select a shade to compare
-                  </div>
+                    <div className="text-center text-[11px] uppercase tracking-[0.3em] text-white/80">
+                      {comparePickerOpen
+                        ? "Select a shade to compare"
+                        : "Tap + to add another shade"}
+                    </div>
 
                   <div className="flex items-center justify-center gap-3">
                     <button
@@ -1937,6 +1945,24 @@ export default function VirtualTryOn() {
                       </svg>
                     </button>
                   </div>
+
+                  {comparePickerOpen && (
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[9px] uppercase tracking-[0.35em] text-white/70">
+                        Preview
+                      </span>
+                      <span className="text-sm font-semibold text-white">
+                        {rightShade?.id === 0
+                          ? "None selected"
+                          : formatShadeLine(rightShade)}
+                      </span>
+                      {rightShade?.id !== 0 && (
+                        <span className="text-[10px] text-white/60">
+                          {rightShade.color?.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="text-center text-sm font-semibold text-white/90">
                     <span className="text-white">Left:</span>{" "}
