@@ -568,12 +568,25 @@ export default function VirtualTryOn() {
   }, [rightShade]);
 
   const [snapshot, setSnapshot] = useState(null);
+  const [isMobileView, setIsMobileView] = useState(false);
 
   // Shade badge
   const [showShadeBadge, setShowShadeBadge] = useState(false);
   const badgeTimerRef = useRef(null);
   const shadeScrollerRef = useRef(null);
   const shadeButtonsRef = useRef({});
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobileView(mq.matches);
+    update();
+    const listener = () => update();
+    mq.addEventListener?.("change", listener);
+    window.addEventListener("resize", update);
+    return () => {
+      mq.removeEventListener?.("change", listener);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   // Consent state
   const [showConsent, setShowConsent] = useState(true);
@@ -1797,10 +1810,152 @@ export default function VirtualTryOn() {
               </div>
             </div>
 
+            <div
+              className={`absolute inset-x-0 bottom-0 z-40 pointer-events-auto ${
+                isMobileView ? "" : "hidden"
+              }`}
+            >
+              <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
+                <div className="relative w-full max-w-[96vw] rounded-[26px] bg-black/90 border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 py-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 rounded-full border border-white/30 bg-black/40">
+                        <span
+                          className="h-7 w-7 rounded-full border border-white/40"
+                          style={{
+                            backgroundColor:
+                              leftShade.color === "transparent"
+                                ? "#6f6f6f"
+                                : leftShade.color,
+                          }}
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {leftShadeLine}
+                        </div>
+                        <div className="text-[10px] text-white/70">
+                          {leftShade.color === "transparent"
+                            ? "Live tone"
+                            : leftShade.color.toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setComparePickerOpen(true)}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white"
+                      aria-label="Add another shade"
+                    >
+                      <span className="text-[22px] leading-none">+</span>
+                    </button>
+                  </div>
+
+                  <div className="text-center text-[11px] uppercase tracking-[0.3em] text-white/80">
+                    Select a shade to compare
+                  </div>
+
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => scrollCompareRail(-1)}
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white"
+                      aria-label="Scroll shades left"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+
+                    <div
+                      ref={compareScrollerRef}
+                      className="hide-scrollbar flex items-center gap-3 overflow-x-auto py-1 px-4"
+                      style={{ touchAction: "pan-x" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRightShade(LIPSTICK_SHADES[0]);
+                          setComparePickerOpen(true);
+                        }}
+                        className={`relative flex-shrink-0 w-10 h-10 rounded-full border ${
+                          rightShade?.id === 0
+                            ? "border-white/90 ring-2 ring-white/60"
+                            : "border-white/25"
+                        } text-white/85`}
+                        style={{ background: "rgba(110,110,110,0.45)" }}
+                        title="None"
+                      >
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
+                        </span>
+                      </button>
+                      {LIPSTICK_SHADES.filter((s) => s.id !== 0).map((shade) => (
+                        <button
+                          key={shade.id}
+                          type="button"
+                          onClick={() => {
+                            setRightShade(shade);
+                            setComparePickerOpen(false);
+                          }}
+                          className={`relative flex-shrink-0 w-10 h-10 rounded-full border ${
+                            rightShade?.id === shade.id
+                              ? "border-white/90 ring-2 ring-white/60"
+                              : "border-white/25"
+                          }`}
+                          style={{ background: shade.color }}
+                          title={shade.name}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => scrollCompareRail(1)}
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white"
+                      aria-label="Scroll shades right"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="text-center text-sm font-semibold text-white/90">
+                    <span className="text-white">Left:</span>{" "}
+                    {leftShadeLine}{" "}
+                    <span className="mx-1 opacity-60">|</span>{" "}
+                    <span className="text-white">Right:</span>{" "}
+                    {rightShadeLine}
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Bottom dual-shade tray */}
-            <div className="absolute inset-x-0 bottom-0 z-40 pointer-events-none">
-              <div className="pointer-events-auto w-full px-4 pb-4">
-                <div className="relative w-full rounded-[26px] bg-black/80 backdrop-blur-2xl border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.45)] px-4 sm:px-6 py-4">
+            <div
+              className={`absolute inset-x-0 bottom-0 z-40 pointer-events-none ${
+                isMobileView ? "hidden" : ""
+              }`}
+            >
+              <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
+                <div className="relative w-full max-w-[96vw] sm:max-w-5xl rounded-[26px] bg-black/80 backdrop-blur-2xl border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.45)] px-4 sm:px-6 py-4">
                   {/* Close compare */}
                   <button
                     type="button"
@@ -1823,7 +1978,11 @@ export default function VirtualTryOn() {
                   </button>
 
                   <div className="flex flex-col gap-4">
-                    <div className="grid w-full gap-3 md:grid-cols-2">
+                    <div
+                      className={`grid w-full gap-3 ${
+                        isMobileView ? "grid-cols-1" : "md:grid-cols-2"
+                      }`}
+                    >
                       <div className="pointer-events-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
                         <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-white/30 bg-black/40 shadow-[0_10px_22px_rgba(0,0,0,0.45)]">
                           <span
