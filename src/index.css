@@ -16,8 +16,13 @@ body {
   overflow-x: hidden;
 }
 
-/* if you want to hide *all* scrollbars including vertical on the AR page:
-body.ar-no-scroll { overflow: hidden; }
+/* Lock the AR route to the viewport to avoid gutters */
+body.ar-no-scroll {
+  overflow: hidden;
+  height: 100vh;
+  overscroll-behavior: none;
+  touch-action: none;
+}
 
 /* debug outline for overflow detection (remove when done) */
 .debug-outline * {
