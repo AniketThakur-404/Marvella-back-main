@@ -2227,7 +2227,7 @@ export default function VirtualTryOn() {
             className="absolute inset-x-0 bottom-0 pt-5 pb-5 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10"
             style={{
               paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)",
+                "calc(env(safe-area-inset-bottom, 0px) + 3.5rem)",
             }}
           >
             <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
