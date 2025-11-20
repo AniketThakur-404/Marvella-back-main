@@ -70,9 +70,9 @@ const OCCL_JITTER_THRESH = 0.05;
 const OCCL_Z_STD_THRESH = 0.02;
 const OCCL_MIN_FRAMES = 3;
 const HEAD_VEL_THRESH = 0.03;
-const HAND_OVERLAP_RATIO = 0.03;
-const HAND_BBOX_PAD_PX = 40;
-const ONLY_HIDE_ON_HAND = false;
+const HAND_OVERLAP_RATIO = 0.035;
+const HAND_BBOX_PAD_PX = 36;
+const ONLY_HIDE_ON_HAND = true;
 
 // NEW: limit how far lips are allowed to “jump” between frames
 // (fraction of frame diagonal). If exceeded, we keep previous lips.
