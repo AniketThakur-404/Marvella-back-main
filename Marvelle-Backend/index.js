@@ -21,10 +21,17 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
 ].filter(Boolean);
 
+const isLocalDevOrigin = (origin = '') => {
+  if (typeof origin !== 'string') return false;
+  return origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+};
+
 const corsOptions = {
   origin(origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin) || isLocalDevOrigin(origin)) {
+      return callback(null, true);
+    }
     return callback(new Error(`CORS: Origin not allowed: ${origin}`), false);
   },
   credentials: true,

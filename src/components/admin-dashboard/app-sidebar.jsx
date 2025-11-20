@@ -31,7 +31,7 @@ import { useSidebar } from "@/hooks/use-sidebar";
 
 const primaryNav = [
   { title: "Overview", icon: LayoutDashboard, href: "/dashboard" },
-  { title: "Products", icon: Package, href: "/dashboard#management" },
+  { title: "Products", icon: Package, href: "/dashboard/products" },
   { title: "Collections", icon: Layers3, href: "/dashboard#management" },
   { title: "Shades", icon: Palette, href: "/dashboard#management" },
   { title: "Inventory", icon: Boxes, href: "/dashboard#management" },
@@ -133,6 +133,7 @@ export function AppSidebar({ className = "", style, ...props }) {
       style={wrapperStyle}
     >
       <Sidebar
+        position="sticky"
         collapsible={isMobile ? "offcanvas" : "icon"}
         className={`group/sidebar sticky left-0 top-0 flex h-svh w-full flex-col bg-[linear-gradient(180deg,var(--primary-100),var(--secondary-100))] text-slate-700 ${className}`.trim()}
         style={sidebarStyle}

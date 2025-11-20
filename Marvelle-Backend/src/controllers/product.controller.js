@@ -76,7 +76,6 @@ const buildProductData = (payload) => ({
     ? {
         create: payload.images.map((image) => ({
           url: image.url,
-          alt: image.alt ?? null,
         })),
       }
     : undefined,

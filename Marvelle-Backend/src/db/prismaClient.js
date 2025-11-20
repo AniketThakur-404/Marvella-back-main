@@ -4,13 +4,26 @@ const { Pool } = require('pg');
 
 const globalForPrisma = globalThis;
 
-const buildPool = () =>
-  new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('sslmode=require')
+const resolveDatabaseUrl = () => {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL must be set before initializing Prisma. Create Marvelle-Backend/.env (or export the variable) and run npm install again.'
+    );
+  }
+  return url;
+};
+
+const buildPool = () => {
+  const connectionString = resolveDatabaseUrl();
+
+  return new Pool({
+    connectionString,
+    ssl: connectionString.includes('sslmode=require')
       ? { rejectUnauthorized: false }
       : undefined,
   });
+};
 
 const pool = globalForPrisma.__marvellaPgPool || buildPool();
 if (process.env.NODE_ENV !== 'production') {
@@ -31,6 +44,7 @@ const getPrisma = async () => prisma;
 
 const disconnect = async () => {
   await prisma.$disconnect();
+
   await pool.end();
 };
 

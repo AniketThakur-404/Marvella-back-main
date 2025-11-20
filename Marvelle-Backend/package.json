@@ -10,7 +10,8 @@
     "patch:prisma": "node scripts/patch-prisma-wasm-loader.cjs",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "postinstall": "npm run prisma:generate"
+    "init:env": "node scripts/init-env.cjs",
+    "postinstall": "npm run init:env && npm run prisma:generate"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +31,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "nodemon": "^3.1.10",
     "prisma": "^6.18.0"
   }

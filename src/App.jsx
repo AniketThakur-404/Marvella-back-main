@@ -8,13 +8,16 @@ import LipstickAR from "./AR/LipstickAR";
 import Signup from "@/components/forms/Signup"
 import Login from "@/components/forms/Login"
 import Dashboard from "@/components/admin-dashboard/Dashboard"
+import ProductOverview from "@/components/admin-dashboard/ProductOverview"
 import ProductCreate from "@/components/admin-dashboard/ProductCreate"
 import ProductEdit from "@/components/admin-dashboard/ProductEdit"
 
 
 const App = () => {
   const location = useLocation()
-  const hideLayout = location.pathname.startsWith('/dashboard')
+  const isDashboardRoute = location.pathname.startsWith('/dashboard')
+  const isARRoute = location.pathname.startsWith('/ar')
+  const hideLayout = isDashboardRoute || isARRoute
 
   return (
     <main>
@@ -24,16 +27,12 @@ const App = () => {
         <Route path="/product/:id" element={<ProductDetails/>} />
         <Route
           path="/ar/lipstick"
-          element={
-            <div className="min-h-screen bg-gray-50 p-6">
-              <h1 className="text-2xl font-semibold mb-4  mt-10">Lipstick AR Test</h1>
-              <LipstickAR />
-            </div>
-          }
+          element={<LipstickAR />}
         />
         <Route path='/signup' element={<Signup/>}/>
         <Route path='/login' element={<Login/>}/>
         <Route path='/dashboard' element={<Dashboard/>}/>
+        <Route path='/dashboard/products' element={<ProductOverview/>}/>
         <Route path='/dashboard/products/new' element={<ProductCreate/>}/>
         <Route path='/dashboard/products/:id/edit' element={<ProductEdit/>}/>
       </Routes>

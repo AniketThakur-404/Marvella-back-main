@@ -18,11 +18,11 @@ export default function ProductCreate() {
   const collectionOptions = Array.isArray(collections) ? collections : [];
 
   const handleCancel = () => navigate("/dashboard");
-  const handleSuccess = () => navigate("/dashboard");
+  const handleSuccess = () => navigate("/dashboard/products");
 
   return (
     <SidebarProvider>
-      <div className="flex h-svh w-full overflow-hidden">
+      <div className="flex h-svh w-full">
         <AppSidebar />
         <SidebarInset className="flex min-w-0 flex-1 flex-col bg-[#f5f7fb]">
           <header className="flex flex-col gap-4 border-b border-border bg-white/95 px-4 py-5 shadow-sm md:flex-row md:items-center md:justify-between lg:px-6">

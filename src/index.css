@@ -181,5 +181,13 @@ body.ar-no-scroll { overflow: hidden; }
   }
 }
 /* Hide scrollbars but keep scrolling */
-.scrollbar-hide::-webkit-scrollbar { width: 0; height: 0; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scrollbar-hide,
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

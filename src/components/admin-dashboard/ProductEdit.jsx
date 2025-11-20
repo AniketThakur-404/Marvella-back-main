@@ -64,7 +64,7 @@ export default function ProductEdit() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-svh w-full overflow-hidden">
+      <div className="flex h-svh w-full">
         <AppSidebar />
         <SidebarInset className="flex min-w-0 flex-1 flex-col bg-[#f5f7fb]">
           <div className="sticky top-0 z-20 grid grid-cols-[auto,1fr] items-center gap-2 border-b bg-[#f5f7fb]/80 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[#f5f7fb]/60 md:hidden">

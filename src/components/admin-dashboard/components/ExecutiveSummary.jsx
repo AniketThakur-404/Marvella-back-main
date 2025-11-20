@@ -14,9 +14,9 @@ export function ExecutiveSummary({ summary, onCreateProduct }) {
       detail: `${summary.weeklyOrders} this week / ${summary.dailyOrders} today`,
     },
     {
-      label: "Active campaigns",
-      value: summary.activeCampaigns,
-      detail: summary.topCampaign ?? "No campaigns running",
+      label: "Catalog ready",
+      value: summary.catalogProducts,
+      detail: `${summary.catalogCollections} collections live`,
     },
     {
       label: "Customer sentiment",

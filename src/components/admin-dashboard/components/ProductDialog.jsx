@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,17 @@ function ProductFormBase({
   const isEdit = mode === "edit";
   const resolvedFormId = formId ?? (isDialog ? "product-dialog-form" : "product-create-form");
 
+  const generateShadeKey = () => generateId();
+
+  const createEmptyShade = () => ({
+    id: generateShadeKey(),
+    name: "",
+    hexColor: "#a21caf",
+    sku: "",
+    price: "",
+    quantity: "",
+  });
+
   const defaultValues = {
     name: "",
     slug: "",
@@ -90,28 +101,26 @@ function ProductFormBase({
     inStoreSelling: false,
   };
 
-  const { register, handleSubmit, setValue, reset, getValues, watch } = useForm({
-    defaultValues: { ...defaultValues },
-  });
-
-  const generateShadeKey = () => generateId();
-
-  const createEmptyShade = () => ({
-    key: generateShadeKey(),
-    name: "",
-    hexColor: "#a21caf",
-    sku: "",
-    price: "",
-    quantity: "",
+  const { register, handleSubmit, setValue, reset, getValues, watch, control } = useForm({
+    defaultValues: { ...defaultValues, shades: [createEmptyShade()] },
   });
 
   const [manualSlug, setManualSlug] = useState(false);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
-  const [shadesState, setShadesState] = useState(() => [createEmptyShade()]);
   const [submitting, setSubmitting] = useState(false);
   const [descriptionFileName, setDescriptionFileName] = useState("");
   const [activeTab, setActiveTab] = useState(SECTIONS[0].value);
+
+  const {
+    fields: shadeFields,
+    append: appendShade,
+    remove: removeShade,
+    replace: replaceShades,
+  } = useFieldArray({
+    control,
+    name: "shades",
+  });
 
   // NOTE: no TS generics here; this is .jsx
   const editorRef = useRef(null);
@@ -135,9 +144,9 @@ function ProductFormBase({
       descriptionRef.current = "";
       setActiveTab(SECTIONS[0].value);
       setExistingImages([]);
-      setShadesState([createEmptyShade()]);
+      replaceShades([createEmptyShade()]);
     }
-  }, [isDialog, open, reset]);
+  }, [isDialog, open, reset, replaceShades]);
 
   // keep the field registered, but don't mirror on each keystroke
   useEffect(() => {
@@ -154,6 +163,19 @@ function ProductFormBase({
     basePrice: prod?.basePrice != null ? String(prod.basePrice) : "",
     collectionId: prod?.collectionId ?? "",
     compareAtPrice: prod?.compareAtPrice != null ? String(prod.compareAtPrice) : "",
+    shades: Array.isArray(prod?.shades)
+      ? prod.shades.map((shade) => ({
+          id: shade.id ?? generateShadeKey(),
+          name: shade.name ?? "",
+          hexColor: shade.hexColor ?? "#a855f7",
+          sku: shade.sku ?? "",
+          price:
+            typeof shade.price === "string" || typeof shade.price === "number"
+              ? String(shade.price)
+              : "",
+          quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
+        }))
+      : [createEmptyShade()],
   });
 
   useEffect(() => {
@@ -166,7 +188,7 @@ function ProductFormBase({
       descriptionRef.current = product.description ?? "";
       const mappedShades = Array.isArray(product.shades)
         ? product.shades.map((shade) => ({
-            key: shade.id ?? generateShadeKey(),
+            id: shade.id ?? generateShadeKey(),
             name: shade.name ?? "",
             hexColor: shade.hexColor ?? "#a855f7",
             sku: shade.sku ?? "",
@@ -177,14 +199,12 @@ function ProductFormBase({
             quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
           }))
         : [];
-      setShadesState(mappedShades.length ? mappedShades : [createEmptyShade()]);
+      replaceShades(mappedShades.length ? mappedShades : [createEmptyShade()]);
     }
-  }, [isEdit, product, reset]);
+  }, [isEdit, product, reset, replaceShades]);
 
-  const handleAddShade = () => setShadesState((p) => [...p, createEmptyShade()]);
-  const handleShadeChange = (key, field, value) =>
-    setShadesState((prev) => prev.map((s) => (s.key === key ? { ...s, [field]: value } : s)));
-  const handleRemoveShade = (key) => setShadesState((prev) => prev.filter((s) => s.key !== key));
+  const handleAddShade = () => appendShade(createEmptyShade());
+  const handleRemoveShade = (index) => removeShade(index);
 
   const handleImageChange = (event) => {
     const files = Array.from(event.target.files ?? []).slice(0, 6);
@@ -265,7 +285,7 @@ function ProductFormBase({
         ...uploadedImages.map((url) => ({ url })),
       ];
 
-      const shadePayload = shadesState
+      const shadePayload = (values.shades || [])
         .map((shade) => ({
           name: shade.name?.trim() ?? "",
           hexColor: shade.hexColor?.trim() ?? "",
@@ -304,6 +324,9 @@ function ProductFormBase({
       }
 
       refresh?.();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard:data:refresh"));
+      }
       toast.success(isEdit ? "Product updated" : "Product created");
       if (typeof afterSubmit === "function") afterSubmit();
       else if (isDialog) onClose(false);
@@ -321,10 +344,11 @@ function ProductFormBase({
 
   const ScrollContainer = ({ className = "", children, allowScroll = false }) => {
     if (isDialog) {
+      const heightClass = allowScroll ? "max-h-96" : scrollAreaHeightClass;
       return (
-        <ScrollArea className={`${allowScroll ? "max-h-96" : scrollAreaHeightClass} pr-3 md:pr-4 ${className}`}>
+        <div className={`${heightClass} overflow-y-auto pr-3 md:pr-4 ${className}`}>
           {children}
-        </ScrollArea>
+        </div>
       );
     }
     return <div className={`pr-1 md:pr-2 lg:pr-3 ${className}`}>{children}</div>;
@@ -652,56 +676,73 @@ function ProductFormBase({
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {shadesState.length ? (
+                        {shadeFields.length ? (
                           <div className="space-y-4">
-                            {shadesState.map((shade) => {
-                              const nameId = `${resolvedFormId}-${shade.key}-name`;
-                              const hexTextId = `${resolvedFormId}-${shade.key}-hex-text`;
-                              const hexPickerId = `${resolvedFormId}-${shade.key}-hex-picker`;
-                              const skuId = `${resolvedFormId}-${shade.key}-sku`;
-                              const priceId = `${resolvedFormId}-${shade.key}-price`;
-                              const quantityId = `${resolvedFormId}-${shade.key}-quantity`;
+                            {shadeFields.map((shade, index) => {
+                              const baseId = `${resolvedFormId}-shade-${shade.id ?? index}`;
+                              const nameId = `${baseId}-name`;
+                              const hexTextId = `${baseId}-hex-text`;
+                              const hexPickerId = `${baseId}-hex-picker`;
+                              const skuId = `${baseId}-sku`;
+                              const priceId = `${baseId}-price`;
+                              const quantityId = `${baseId}-quantity`;
+                              const namePath = `shades.${index}.name`;
+                              const skuPath = `shades.${index}.sku`;
+                              const pricePath = `shades.${index}.price`;
+                              const quantityPath = `shades.${index}.quantity`;
 
                               return (
-                                <div key={shade.key} className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+                                <div key={shade.id ?? index} className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
                                   <div className="grid gap-4 md:grid-cols-3">
                                     <div className="space-y-1.5">
                                       <Label htmlFor={nameId}>Shade name</Label>
                                       <Input
                                         id={nameId}
                                         autoComplete="off"
-                                        value={shade.name}
-                                        onChange={(e) => handleShadeChange(shade.key, "name", e.target.value)}
+                                        defaultValue={shade.name}
+                                        {...register(namePath)}
                                         placeholder="Velvet berry"
                                       />
                                     </div>
                                     <div className="space-y-1.5">
                                       <Label htmlFor={hexTextId}>Hex color</Label>
-                                      <div className="flex items-center gap-2">
-                                        <Input
-                                          id={hexPickerId}
-                                          type="color"
-                                          value={shade.hexColor || "#a21caf"}
-                                          onChange={(e) => handleShadeChange(shade.key, "hexColor", e.target.value)}
-                                          className="h-10 w-16 cursor-pointer rounded-full border border-border/60 px-1"
-                                          aria-label="Shade color"
-                                        />
-                                        <Input
-                                          id={hexTextId}
-                                          autoComplete="off"
-                                          value={shade.hexColor}
-                                          onChange={(e) => handleShadeChange(shade.key, "hexColor", e.target.value)}
-                                          placeholder="#a21caf"
-                                        />
-                                      </div>
+                                      <Controller
+                                        control={control}
+                                        name={`shades.${index}.hexColor`}
+                                        defaultValue={shade.hexColor}
+                                        render={({ field: hexField }) => {
+                                          const value = hexField.value || "";
+                                          const handleChange = (next) => hexField.onChange(next);
+                                          return (
+                                            <div className="flex items-center gap-2">
+                                              <Input
+                                                id={hexPickerId}
+                                                type="color"
+                                                value={value || "#a21caf"}
+                                                onChange={(e) => handleChange(e.target.value)}
+                                                className="h-10 w-16 cursor-pointer rounded-full border border-border/60 px-1"
+                                                aria-label="Shade color"
+                                              />
+                                              <Input
+                                                id={hexTextId}
+                                                autoComplete="off"
+                                                value={value}
+                                                onChange={(e) => handleChange(e.target.value)}
+                                                placeholder="#a21caf"
+                                                ref={hexField.ref}
+                                              />
+                                            </div>
+                                          );
+                                        }}
+                                      />
                                     </div>
                                     <div className="space-y-1.5">
                                       <Label htmlFor={skuId}>SKU (optional)</Label>
                                       <Input
                                         id={skuId}
                                         autoComplete="off"
-                                        value={shade.sku}
-                                        onChange={(e) => handleShadeChange(shade.key, "sku", e.target.value)}
+                                        defaultValue={shade.sku}
+                                        {...register(skuPath)}
                                         placeholder="SKU-001"
                                       />
                                     </div>
@@ -715,8 +756,8 @@ function ProductFormBase({
                                         min="0"
                                         step="0.01"
                                         autoComplete="off"
-                                        value={shade.price}
-                                        onChange={(e) => handleShadeChange(shade.key, "price", e.target.value)}
+                                        defaultValue={shade.price}
+                                        {...register(pricePath)}
                                         placeholder="799"
                                       />
                                     </div>
@@ -727,13 +768,13 @@ function ProductFormBase({
                                         type="number"
                                         min="0"
                                         autoComplete="off"
-                                        value={shade.quantity}
-                                        onChange={(e) => handleShadeChange(shade.key, "quantity", e.target.value)}
+                                        defaultValue={shade.quantity}
+                                        {...register(quantityPath)}
                                         placeholder="150"
                                       />
                                     </div>
                                     <div className="flex items-end justify-end">
-                                      <Button type="button" variant="ghost" className="text-destructive" onClick={() => handleRemoveShade(shade.key)}>
+                                      <Button type="button" variant="ghost" className="text-destructive" onClick={() => handleRemoveShade(index)}>
                                         Remove shade
                                       </Button>
                                     </div>
