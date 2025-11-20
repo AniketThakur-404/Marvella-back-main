@@ -1817,7 +1817,9 @@ export default function VirtualTryOn() {
               className={`absolute inset-x-0 bottom-0 z-40 pointer-events-auto ${
                 isMobileView ? "" : "hidden"
               }`}
-              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+              style={{
+                paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+              }}
             >
               <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
                 <div className="relative w-full max-w-[96vw] rounded-[26px] bg-black/90 border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 py-4 flex flex-col gap-3">
@@ -2220,7 +2222,10 @@ export default function VirtualTryOn() {
 
         {/* Bottom controls & single-shade rail */}
         {started && !snapshot && !compareEnabled && (
-          <div className="absolute inset-x-0 bottom-0 pt-5 pb-5 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10">
+          <div
+            className="absolute inset-x-0 bottom-0 pt-5 pb-5 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.25rem)" }}
+          >
             <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
               <div className="w-full max-w-4xl flex flex-col items-center gap-2.5">
                 {/* Shade rail (single mode) */}
