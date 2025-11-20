@@ -1947,10 +1947,11 @@ export default function VirtualTryOn() {
                           </svg>
                         </button>
 
-                        <div
-                          ref={compareScrollerRef}
-                          className="hide-scrollbar flex items-center gap-3 overflow-x-auto py-2 px-8 sm:px-14"
-                        >
+                      <div
+                        ref={compareScrollerRef}
+                        className="hide-scrollbar flex items-center gap-3 overflow-x-auto py-2 px-8 sm:px-14"
+                        style={{ touchAction: "pan-x" }}
+                      >
                           {/* None chip */}
                           <button
                             type="button"
@@ -2058,10 +2059,11 @@ export default function VirtualTryOn() {
                     </svg>
                   </button>
                   <div className="flex-1 px-1.5 sm:px-6">
-                    <div
-                      ref={shadeScrollerRef}
-                      className="hide-scrollbar flex items-center justify-center gap-3.5 overflow-x-auto scroll-smooth py-1.5"
-                    >
+                      <div
+                        ref={shadeScrollerRef}
+                        className="hide-scrollbar flex items-center justify-center gap-3.5 overflow-x-auto scroll-smooth py-1.5"
+                        style={{ touchAction: "pan-x" }}
+                      >
                       {LIPSTICK_SHADES.map((shade) => {
                         const isSelected =
                           (activeSide === "left"
