@@ -2224,10 +2224,10 @@ export default function VirtualTryOn() {
         {/* Bottom controls & single-shade rail */}
         {started && !snapshot && !compareEnabled && (
           <div
-            className="absolute inset-x-0 bottom-0 pt-5 pb-5 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10"
+            className="absolute inset-x-0 bottom-0 pt-5 pb-7 bg-gradient-to-t from-black/75 via-black/25 to-transparent z-10"
             style={{
               paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)",
+                "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)",
             }}
           >
             <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
