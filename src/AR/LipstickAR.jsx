@@ -1886,8 +1886,8 @@ export default function VirtualTryOn() {
             )}
 
             <div
-              className={`absolute inset-x-0 bottom-0 z-40 pointer-events-auto ${
-                isMobileView && comparePickerOpen ? "" : "pointer-events-none invisible"
+              className={`absolute inset-x-0 bottom-0 z-40 ${
+                isMobileView && comparePickerOpen ? "pointer-events-auto" : "pointer-events-none hidden"
               }`}
               style={{
                 paddingBottom:
@@ -1903,7 +1903,7 @@ export default function VirtualTryOn() {
                     aria-label="Collapse shade tray"
                   >
                     <svg
-                      className={`w-4 h-4 transition-transform ${comparePickerOpen ? "" : "-rotate-90"}`}
+                      className="w-4 h-4 transition-transform"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
