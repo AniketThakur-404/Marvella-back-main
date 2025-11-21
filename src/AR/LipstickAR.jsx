@@ -1899,11 +1899,11 @@ export default function VirtualTryOn() {
                   <button
                     type="button"
                     onClick={() => setComparePickerOpen(false)}
-                    className="absolute left-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
-                    aria-label="Back"
+                    className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white"
+                    aria-label="Collapse shade tray"
                   >
                     <svg
-                      className="w-4 h-4"
+                      className={`w-4 h-4 transition-transform ${comparePickerOpen ? "" : "-rotate-90"}`}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -1911,26 +1911,7 @@ export default function VirtualTryOn() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setComparePickerOpen(false)}
-                    className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
-                    aria-label="Close shade tray"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
+                      <polyline points="6 9 12 15 18 9" />
                     </svg>
                   </button>
                   <div className="flex items-center justify-between gap-3">
