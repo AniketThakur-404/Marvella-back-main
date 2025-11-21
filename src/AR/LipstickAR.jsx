@@ -1830,7 +1830,7 @@ export default function VirtualTryOn() {
               <button
                 type="button"
                 onClick={disableCompare}
-                className="pointer-events-auto absolute top-6 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-black/70 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] active:scale-95 transition-transform"
+                className="pointer-events-auto absolute top-16 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-black/70 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] active:scale-95 transition-transform"
                 aria-label="Close dual shades"
               >
                 <svg
