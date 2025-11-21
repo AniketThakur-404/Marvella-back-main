@@ -725,12 +725,6 @@ export default function VirtualTryOn() {
     });
   };
 
-  const disableCompare = () => {
-    compareEnabledRef.current = false;
-    setCompareEnabled(false);
-    setComparePickerOpen(false);
-  };
-
   useEffect(() => {
     const { move, up } = compareDragHandlersRef.current;
     if (move) window.removeEventListener("pointermove", move);
@@ -1559,10 +1553,6 @@ export default function VirtualTryOn() {
 
   const leftShadeLine = formatShadeLine(leftShade);
   const rightShadeLine = formatShadeLine(rightShade);
-  const addButtonLabel = comparePickerOpen
-    ? "Close shade picker"
-    : "Add another shade";
-  const showCompareHelper = comparePickerOpen || rightShade?.id === 0;
   const comparePreviewShade =
     rightShade?.id === 0 || !rightShade ? leftShade : rightShade;
 
@@ -1839,9 +1829,9 @@ export default function VirtualTryOn() {
             </div>
 
             {/* Floating shade labels near split */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-[32%] px-5 flex items-end justify-between text-white drop-shadow-[0_6px_18px_rgba(0,0,0,0.65)]">
+            <div className="pointer-events-none absolute inset-x-0 bottom-[25%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
               <div className="flex items-center gap-3">
-                <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/70 bg-black/35">
+                <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/35">
                   <span
                     className="h-9 w-9 rounded-full"
                     style={{
@@ -1851,49 +1841,53 @@ export default function VirtualTryOn() {
                           : leftShade.color,
                     }}
                   />
-                  <span className="absolute inset-[3px] rounded-full border border-white/40" aria-hidden="true" />
+                  <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
                 </span>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-medium text-white/80">Left</span>
-                  <span className="text-base font-semibold">{leftShadeLine}</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                    Left
+                  </span>
+                  <span className="text-[15px] font-semibold">{leftShadeLine}</span>
                 </div>
               </div>
 
-              {rightShade?.id === 0 ? (
-                <div className="flex flex-col items-center gap-2 pointer-events-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSide("right");
-                      setComparePickerOpen(true);
-                    }}
-                    className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/70 bg-black/50 text-white shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
-                    aria-label="Add another shade"
-                  >
+              <div className="pointer-events-auto flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSide("right");
+                    setComparePickerOpen(true);
+                  }}
+                  className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/40 text-white shadow-[0_12px_28px_rgba(0,0,0,0.55)] backdrop-blur"
+                  aria-label={rightShade?.id === 0 ? "Add another shade" : "Switch right shade"}
+                >
+                  {rightShade?.id === 0 ? (
                     <span className="text-2xl leading-none">+</span>
-                  </button>
-                  <span className="text-base font-semibold">Add another</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/70 bg-black/35">
-                    <span
-                      className="h-9 w-9 rounded-full"
-                      style={{
-                        backgroundColor:
-                          rightShade?.color === "transparent"
-                            ? "rgba(110,110,110,0.65)"
-                            : rightShade?.color,
-                      }}
-                    />
-                    <span className="absolute inset-[3px] rounded-full border border-white/40" aria-hidden="true" />
+                  ) : (
+                    <>
+                      <span
+                        className="h-9 w-9 rounded-full"
+                        style={{
+                          backgroundColor:
+                            rightShade?.color === "transparent"
+                              ? "rgba(110,110,110,0.65)"
+                              : rightShade?.color,
+                        }}
+                        aria-hidden="true"
+                      />
+                      <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+                <div className="flex flex-col leading-tight text-right">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                    {rightShade?.id === 0 ? "" : "Right"}
                   </span>
-                  <div className="flex flex-col items-end leading-tight">
-                    <span className="text-sm font-medium text-white/80">Right</span>
-                    <span className="text-base font-semibold text-right">{rightShadeLine}</span>
-                  </div>
+                  <span className="text-[15px] font-semibold">
+                    {rightShade?.id === 0 ? "Add another" : rightShadeLine}
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
 
             <div
@@ -1902,37 +1896,16 @@ export default function VirtualTryOn() {
               }`}
               style={{
                 paddingBottom:
-                  "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
+                  "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)",
               }}
             >
-              <div className="pointer-events-auto w-full px-3 pb-4 flex justify-center">
-                <div className="relative w-full max-w-[520px] rounded-t-[34px] bg-black/90 border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-5 pt-4 pb-5 flex flex-col gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setComparePickerOpen((prev) => !prev)}
-                    className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white"
-                    aria-label={addButtonLabel}
-                  >
-                    <svg
-                      className={`w-4 h-4 transition-transform ${
-                        comparePickerOpen ? "" : "rotate-180"
-                      }`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 flex items-center gap-3">
-                      <span className="inline-flex h-11 w-11 rounded-full border border-white/30 bg-black/40">
+              <div className="pointer-events-auto w-full px-3 pb-3 flex justify-center">
+                <div className="relative w-full max-w-[540px] rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-4 pb-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-black/35">
                         <span
-                          className="h-9 w-9 rounded-full border border-white/40"
+                          className="h-9 w-9 rounded-full"
                           style={{
                             backgroundColor:
                               leftShade.color === "transparent"
@@ -1941,9 +1914,10 @@ export default function VirtualTryOn() {
                           }}
                           aria-hidden="true"
                         />
+                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
                       </span>
                       <div className="leading-tight">
-                        <div className="text-[11px] uppercase tracking-[0.28em] text-white/70">
+                        <div className="text-[10px] uppercase tracking-[0.32em] text-white/70">
                           Compare to
                         </div>
                         <div className="text-sm font-semibold text-white">
@@ -1951,362 +1925,133 @@ export default function VirtualTryOn() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <span className="text-white/70">VS</span>
-                      <span className="inline-flex h-11 w-11 rounded-full border border-white/25 bg-black/40">
-                        <span
-                          className="h-9 w-9 rounded-full border border-white/35"
-                          style={{
-                            backgroundColor:
-                              comparePreviewShade?.color === "transparent"
-                                ? "#6f6f6f"
-                                : comparePreviewShade?.color,
-                          }}
-                          aria-hidden="true"
-                        />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white/75 tracking-wide">
+                        VS
+                      </span>
+                      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/70 bg-black/35">
+                        {comparePreviewShade?.id === 0 ? (
+                          <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
+                        ) : (
+                          <span
+                            className="h-9 w-9 rounded-full"
+                            style={{
+                              backgroundColor:
+                                comparePreviewShade?.color === "transparent"
+                                  ? "#6f6f6f"
+                                  : comparePreviewShade?.color,
+                            }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
                       </span>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => scrollCompareRail(-1)}
+                      className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
+                      aria-label="Scroll shades left"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+
+                    <div
+                      ref={compareScrollerRef}
+                      className="hide-scrollbar flex-1 flex items-center gap-3 overflow-x-auto py-1 px-2"
+                      style={{ touchAction: "pan-x" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRightShade(LIPSTICK_SHADES[0]);
+                          setComparePickerOpen(true);
+                        }}
+                        className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150"
+                        style={{
+                          background: "rgba(110,110,110,0.45)",
+                          boxShadow:
+                            rightShade?.id === 0
+                              ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
+                              : "0 0 0 1.5px rgba(255,255,255,0.26)",
+                        }}
+                        title="None"
+                      >
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
+                        </span>
+                      </button>
+                      {LIPSTICK_SHADES.filter((s) => s.id !== 0).map((shade) => {
+                        const isSelected = rightShade?.id === shade.id;
+                        const shadeColor =
+                          shade.color === "transparent"
+                            ? "rgba(110,110,110,0.65)"
+                            : shade.color;
+                        const shadeBackground =
+                          shade.color === "transparent"
+                            ? shadeColor
+                            : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%), ${shadeColor}`;
+                        return (
+                          <button
+                            key={shade.id}
+                            type="button"
+                            onClick={() => {
+                              setRightShade(shade);
+                              setComparePickerOpen(false);
+                            }}
+                            className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150 hover:scale-105"
+                            style={{
+                              background: shadeBackground,
+                              boxShadow: isSelected
+                                ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
+                                : "0 0 0 1.5px rgba(255,255,255,0.26)",
+                            }}
+                            title={shade.name}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => scrollCompareRail(1)}
+                      className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
+                      aria-label="Scroll shades right"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
                   </div>
 
                   <div className="text-center text-[11px] uppercase tracking-[0.3em] text-white/80">
                     Select a shade to compare
                   </div>
 
-                  {comparePickerOpen && (
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => scrollCompareRail(-1)}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white"
-                        aria-label="Scroll shades left"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="15 18 9 12 15 6" />
-                        </svg>
-                      </button>
-
-                      <div
-                        ref={compareScrollerRef}
-                        className="hide-scrollbar flex items-center gap-3 overflow-x-auto py-1 px-4"
-                        style={{ touchAction: "pan-x" }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRightShade(LIPSTICK_SHADES[0]);
-                            setComparePickerOpen(true);
-                          }}
-                          className={`relative flex-shrink-0 w-11 h-11 rounded-full border ${
-                            rightShade?.id === 0
-                              ? "border-white/90 ring-2 ring-white/60"
-                              : "border-white/25"
-                          } text-white/85`}
-                          style={{ background: "rgba(110,110,110,0.45)" }}
-                          title="None"
-                        >
-                          <span className="absolute inset-0 flex items-center justify-center">
-                            <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                          </span>
-                        </button>
-                        {LIPSTICK_SHADES.filter((s) => s.id !== 0).map(
-                          (shade) => (
-                            <button
-                              key={shade.id}
-                              type="button"
-                              onClick={() => {
-                                setRightShade(shade);
-                                setComparePickerOpen(false);
-                              }}
-                              className={`relative flex-shrink-0 w-11 h-11 rounded-full border ${
-                                rightShade?.id === shade.id
-                                  ? "border-white/90 ring-2 ring-white/60"
-                                  : "border-white/25"
-                              } transition-transform hover:scale-105`}
-                              style={{ background: shade.color }}
-                              title={shade.name}
-                            />
-                          )
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => scrollCompareRail(1)}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white"
-                        aria-label="Scroll shades right"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-
                   <div className="text-center text-white leading-tight space-y-0.5">
                     <div className="text-[11px] font-medium text-white/70 tracking-[0.2em] uppercase">
                       {PRODUCT_LINE_LABEL}
-                    </div>
-                    <div className="text-base font-semibold text-white">
-                      {formatShadeLine(comparePreviewShade)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Bottom dual-shade tray */}
-            <div
-              className={`absolute inset-x-0 bottom-0 z-40 pointer-events-none ${
-                isMobileView ? "hidden" : ""
-              }`}
-            >
-              <div className="pointer-events-auto w-full px-4 pb-4 flex justify-center">
-                <div className="relative w-full max-w-[96vw] sm:max-w-5xl rounded-[26px] bg-black/80 backdrop-blur-2xl border border-white/10 shadow-[0_-25px_60px_rgba(0,0,0,0.45)] px-4 sm:px-6 py-4">
-                  {/* Close compare */}
-                  <button
-                    type="button"
-                    onClick={disableCompare}
-                    className="pointer-events-auto absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white hover:border-white/60 hover:bg-black/60"
-                    aria-label="Exit dual shade view"
-                  >
-                    <svg
-                      className="w-4.5 h-4.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-
-                  <div className="flex flex-col gap-4">
-                    <div
-                      className={`grid w-full gap-3 ${
-                        isMobileView ? "grid-cols-1" : "md:grid-cols-2"
-                      }`}
-                    >
-                      <div className="pointer-events-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
-                        <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-white/30 bg-black/40 shadow-[0_10px_22px_rgba(0,0,0,0.45)]">
-                          <span
-                            className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-white/40"
-                            style={{
-                              backgroundColor:
-                                leftShade.color === "transparent"
-                                  ? "#6f6f6f"
-                                  : leftShade.color,
-                            }}
-                            aria-hidden="true"
-                          />
-                        </span>
-                        <div className="flex flex-col gap-1 text-center sm:text-left">
-                          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.35em] sm:tracking-[0.4em] text-white/60">
-                            Left shade
-                          </span>
-                          <span className="text-sm font-semibold text-white leading-tight">
-                            {leftShadeLine}
-                          </span>
-                          <span className="text-[10px] text-white/60">
-                            {leftShade.color === "transparent"
-                              ? "Live tone"
-                              : leftShade.color.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`pointer-events-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl border px-4 py-3 transition-colors shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${
-                          rightShade?.id === 0
-                            ? "border-dashed border-white/45 bg-white/5"
-                            : "border-white/15 bg-white/5"
-                        }`}
-                        onClick={() => setComparePickerOpen(true)}
-                      >
-                        <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-white/30 bg-black/40 shadow-[0_10px_22px_rgba(0,0,0,0.45)]">
-                          <span
-                            className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-white/40"
-                            style={{
-                              backgroundColor:
-                                rightShade?.color === "transparent"
-                                  ? "#6f6f6f"
-                                  : rightShade?.color,
-                            }}
-                            aria-hidden="true"
-                          />
-                        </span>
-                        <div className="flex flex-1 flex-col gap-1 text-center sm:text-left">
-                          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.35em] sm:tracking-[0.4em] text-white/60">
-                            Right shade
-                          </span>
-                          <span
-                            className={`text-sm font-semibold ${
-                              rightShade?.id === 0
-                                ? "text-white/70"
-                                : "text-white"
-                            }`}
-                          >
-                            {rightShade?.id === 0
-                              ? "Tap a shade below to add"
-                              : formatShadeLine(rightShade)}
-                          </span>
-                          <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 text-[10px] text-white/60">
-                            {rightShade?.id === 0 ? (
-                              <span>Awaiting selection</span>
-                            ) : (
-                              <>
-                                <span className="font-mono">
-                                  {rightShade.color?.toUpperCase()}
-                                </span>
-                                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.35em]">
-                                  Active
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {rightShade?.id === 0 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setComparePickerOpen(true);
-                            }}
-                            className="sm:ml-2 inline-flex items-center justify-center rounded-full bg-white/10 px-3 py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.3em] text-white/80 hover:bg-white/20"
-                          >
-                            Add
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1 px-1">
-                      <div className="text-center text-[10px] text-white/70 uppercase tracking-[0.32em]">
-                        Compare shades
-                      </div>
-                      {showCompareHelper && (
-                        <div className="text-center text-[10px] text-white/60">
-                          Swipe the tray or tap to choose your second shade
-                        </div>
-                      )}
-
-                    {comparePickerOpen && (
-                      <div className="relative w-full mt-1">
-                        <button
-                          type="button"
-                          onClick={() => scrollCompareRail(-1)}
-                          className="pointer-events-auto absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-white/20 text-white/80 hover:text-white z-10"
-                          aria-label="Scroll shades left"
-                        >
-                          <svg
-                            className="mx-auto w-3.5 h-3.5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <polyline points="15 18 9 12 15 6" />
-                          </svg>
-                        </button>
-
-                        <div
-                          ref={compareScrollerRef}
-                          className="hide-scrollbar flex items-center gap-3 overflow-x-auto py-2 px-8 sm:px-14"
-                          style={{ touchAction: "pan-x" }}
-                        >
-                          {/* None chip */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRightShade(LIPSTICK_SHADES[0]);
-                              setComparePickerOpen(true);
-                            }}
-                            className={`relative flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full border ${
-                              rightShade?.id === 0
-                                ? "border-white/90 ring-2 ring-white/60"
-                                : "border-white/25"
-                            } text-white/85 pointer-events-auto`}
-                            style={{ background: "rgba(110,110,110,0.45)" }}
-                            title="None"
-                          >
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                            </span>
-                          </button>
-
-                          {LIPSTICK_SHADES.filter((s) => s.id !== 0).map(
-                            (shade) => (
-                              <button
-                                key={shade.id}
-                                type="button"
-                                onClick={() => {
-                                  setRightShade(shade);
-                                  setComparePickerOpen(false);
-                                }}
-                                className={`relative flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full border ${
-                                  rightShade?.id === shade.id
-                                    ? "border-white/90 ring-2 ring-white/60"
-                                    : "border-white/25"
-                                } hover:scale-105 transition pointer-events-auto`}
-                                style={{ background: shade.color }}
-                                title={shade.name}
-                              />
-                            )
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => scrollCompareRail(1)}
-                          className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 border border-white/20 text-white/80 hover:text-white z-10"
-                          aria-label="Scroll shades right"
-                        >
-                          <svg
-                            className="mx-auto w-3.5 h-3.5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                    </div>
-
-                    <div className="text-center text-white leading-tight pt-1">
-                      <div className="text-[11px] sm:text-xs font-medium text-white/75 tracking-[0.12em] uppercase">
-                        {PRODUCT_LINE_LABEL}
-                      </div>
-                      <div className="mt-0.5 text-xs sm:text-sm font-semibold text-white/90">
-                        <span className="text-white">Left:</span>{" "}
-                        {leftShadeLine}{" "}
-                        <span className="mx-2 opacity-60">|</span>{" "}
-                        <span className="text-white">Right:</span>{" "}
-                        {rightShadeLine}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -2370,8 +2115,8 @@ export default function VirtualTryOn() {
                             style={{
                               background: shadeBackground,
                               boxShadow: isSelected
-                                ? "0 0 0 3px rgba(255,255,255,0.95), 0 0 0 6px rgba(0,0,0,0.32)"
-                                : "0 0 0 1.5px rgba(255,255,255,0.22)",
+                                ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
+                                : "0 0 0 1.5px rgba(255,255,255,0.26)",
                             }}
                             title={shade.name}
                           >
@@ -2402,7 +2147,7 @@ export default function VirtualTryOn() {
 
               {/* Bottom buttons */}
               <div className="w-full max-w-lg flex items-center justify-center gap-6 text-white text-opacity-90">
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
                   <svg
                     className="w-4 h-4 md:w-4.5 md:h-4.5"
                     viewBox="0 0 24 24"
@@ -2420,8 +2165,8 @@ export default function VirtualTryOn() {
                   onClick={toggleCompare}
                   className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
                     compareEnabled
-                      ? "bg-white text-black shadow-[0_6px_18px_rgba(0,0,0,0.35)] border-black/20"
-                      : "border-white/10 hover:bg-white/10"
+                      ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
+                      : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
                   }`}
                   aria-pressed={compareEnabled}
                   title={
@@ -2445,11 +2190,11 @@ export default function VirtualTryOn() {
                 </button>
                 <button
                   onClick={takeSnapshot}
-                  className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white shadow-[0_16px_34px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+                  className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
                 >
-                  <div className="h-[85%] w-[85%] rounded-full border-[3px] border-black/80"></div>
+                  <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
                 </button>
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
                   <svg
                     className="w-4 h-4 md:w-4.5 md:h-4.5"
                     viewBox="0 0 24 24"
@@ -2462,7 +2207,7 @@ export default function VirtualTryOn() {
                     <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
                   </svg>
                 </button>
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
                   <svg
                     className="w-4 h-4 md:w-4.5 md:h-4.5"
                     viewBox="0 0 24 24"
