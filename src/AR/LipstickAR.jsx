@@ -1800,16 +1800,10 @@ export default function VirtualTryOn() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onPointerDown={handleComparePointerDown}
-                className="pointer-events-auto absolute top-1/2 flex h-12 w-12 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 bg-black/70 text-white shadow-[0_14px_30px_rgba(0,0,0,0.55)] backdrop-blur-md active:scale-95 transition-transform"
+              <div
+                className="pointer-events-none absolute top-1/2 flex h-12 w-12 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 bg-black/70 text-white shadow-[0_14px_30px_rgba(0,0,0,0.55)] backdrop-blur-md"
                 style={{ left: `${compareRatio * 100}%` }}
-                aria-label="Drag to adjust split"
-                role="slider"
-                aria-valuemin={7}
-                aria-valuemax={93}
-                aria-valuenow={Math.round(compareRatio * 100)}
+                aria-hidden="true"
               >
                 <span className="absolute inset-0 rounded-full border border-white/15 blur-sm" aria-hidden="true" />
                 <span className="absolute inset-1 rounded-full border border-white/40" aria-hidden="true" />
@@ -1825,7 +1819,7 @@ export default function VirtualTryOn() {
                 >
                   <path d="M12 3.5 13.8 9l5.7.4-4.5 3.1 1.5 5.5L12 14.6 7.5 18l1.5-5.5-4.5-3.1 5.7-.4Z" />
                 </svg>
-              </button>
+              </div>
             </div>
 
             {/* Floating shade labels near split */}
@@ -1902,6 +1896,24 @@ export default function VirtualTryOn() {
             >
               <div className="pointer-events-auto w-full px-3 pb-3 flex justify-center">
                 <div className="relative w-full max-w-[540px] rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-5 pb-5 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setComparePickerOpen(false)}
+                    className="absolute left-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
+                    aria-label="Back"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setComparePickerOpen(false)}
