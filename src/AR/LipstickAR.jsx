@@ -717,7 +717,7 @@ export default function VirtualTryOn() {
         const target = 0.5;
         compareRatioRef.current = target;
         setCompareRatio(target);
-        setComparePickerOpen(rightShade?.id === 0);
+        setComparePickerOpen(false);
       } else {
         setComparePickerOpen(false);
       }
@@ -1829,12 +1829,13 @@ export default function VirtualTryOn() {
             </div>
 
             {/* Floating shade labels near split */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-[25%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/35">
-                  <span
-                    className="h-9 w-9 rounded-full"
-                    style={{
+            {!comparePickerOpen && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-[25%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+                <div className="flex items-center gap-3">
+                  <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/35">
+                    <span
+                      className="h-9 w-9 rounded-full"
+                      style={{
                       backgroundColor:
                         leftShade.color === "transparent"
                           ? "rgba(110,110,110,0.65)"
@@ -1888,11 +1889,11 @@ export default function VirtualTryOn() {
                   </span>
                 </div>
               </div>
-            </div>
+            )}
 
             <div
               className={`absolute inset-x-0 bottom-0 z-40 pointer-events-auto ${
-                isMobileView ? "" : "hidden"
+                isMobileView && comparePickerOpen ? "" : "pointer-events-none invisible"
               }`}
               style={{
                 paddingBottom:
@@ -1900,7 +1901,26 @@ export default function VirtualTryOn() {
               }}
             >
               <div className="pointer-events-auto w-full px-3 pb-3 flex justify-center">
-                <div className="relative w-full max-w-[540px] rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-4 pb-4 flex flex-col gap-3">
+                <div className="relative w-full max-w-[540px] rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-5 pb-5 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setComparePickerOpen(false)}
+                    className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
+                    aria-label="Close shade tray"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-black/35">
@@ -1994,35 +2014,39 @@ export default function VirtualTryOn() {
                           <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
                         </span>
                       </button>
-                      {LIPSTICK_SHADES.filter((s) => s.id !== 0).map((shade) => {
-                        const isSelected = rightShade?.id === shade.id;
-                        const shadeColor =
-                          shade.color === "transparent"
-                            ? "rgba(110,110,110,0.65)"
-                            : shade.color;
-                        const shadeBackground =
-                          shade.color === "transparent"
-                            ? shadeColor
-                            : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%), ${shadeColor}`;
-                        return (
-                          <button
-                            key={shade.id}
-                            type="button"
-                            onClick={() => {
-                              setRightShade(shade);
-                              setComparePickerOpen(false);
-                            }}
-                            className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150 hover:scale-105"
-                            style={{
-                              background: shadeBackground,
-                              boxShadow: isSelected
-                                ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
-                                : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                            }}
-                            title={shade.name}
-                          />
-                        );
-                      })}
+                      <div className="flex items-center gap-3">
+                        {LIPSTICK_SHADES.filter((s) => s.id !== 0).map(
+                          (shade) => {
+                            const isSelected = rightShade?.id === shade.id;
+                            const shadeColor =
+                              shade.color === "transparent"
+                                ? "rgba(110,110,110,0.65)"
+                                : shade.color;
+                            const shadeBackground =
+                              shade.color === "transparent"
+                                ? shadeColor
+                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%), ${shadeColor}`;
+                            return (
+                              <button
+                                key={shade.id}
+                                type="button"
+                                onClick={() => {
+                                  setRightShade(shade);
+                                  setComparePickerOpen(false);
+                                }}
+                                className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150 hover:scale-105"
+                                style={{
+                                  background: shadeBackground,
+                                  boxShadow: isSelected
+                                    ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
+                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
+                                }}
+                                title={shade.name}
+                              />
+                            );
+                          }
+                        )}
+                      </div>
                     </div>
 
                     <button
