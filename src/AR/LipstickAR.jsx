@@ -725,6 +725,12 @@ export default function VirtualTryOn() {
     });
   };
 
+  const disableCompare = () => {
+    compareEnabledRef.current = false;
+    setCompareEnabled(false);
+    setComparePickerOpen(false);
+  };
+
   useEffect(() => {
     const { move, up } = compareDragHandlersRef.current;
     if (move) window.removeEventListener("pointermove", move);
@@ -1820,74 +1826,93 @@ export default function VirtualTryOn() {
                   <path d="M12 3.5 13.8 9l5.7.4-4.5 3.1 1.5 5.5L12 14.6 7.5 18l1.5-5.5-4.5-3.1 5.7-.4Z" />
                 </svg>
               </div>
+
+              <button
+                type="button"
+                onClick={disableCompare}
+                className="pointer-events-auto absolute top-6 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-black/70 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] active:scale-95 transition-transform"
+                aria-label="Close dual shades"
+              >
+                <svg
+                  className="w-4.5 h-4.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
 
             {/* Floating shade labels near split */}
             {!comparePickerOpen && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-[25%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              <div className="pointer-events-none absolute inset-x-0 bottom-[18%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
                 <div className="flex items-center gap-3">
                   <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/35">
                     <span
                       className="h-9 w-9 rounded-full"
                       style={{
-                      backgroundColor:
-                        leftShade.color === "transparent"
-                          ? "rgba(110,110,110,0.65)"
-                          : leftShade.color,
-                    }}
-                  />
-                  <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                </span>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
-                    Left
+                        backgroundColor:
+                          leftShade.color === "transparent"
+                            ? "rgba(110,110,110,0.65)"
+                            : leftShade.color,
+                      }}
+                    />
+                    <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
                   </span>
-                  <span className="text-[15px] font-semibold">{leftShadeLine}</span>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Left</span>
+                    <span className="text-[15px] font-semibold">{leftShadeLine}</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pointer-events-auto flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSide("right");
-                    setComparePickerOpen(true);
-                  }}
-                  className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/40 text-white shadow-[0_12px_28px_rgba(0,0,0,0.55)] backdrop-blur"
-                  aria-label={rightShade?.id === 0 ? "Add another shade" : "Switch right shade"}
-                >
-                  {rightShade?.id === 0 ? (
-                    <span className="text-2xl leading-none">+</span>
-                  ) : (
-                    <>
-                      <span
-                        className="h-9 w-9 rounded-full"
-                        style={{
-                          backgroundColor:
-                            rightShade?.color === "transparent"
-                              ? "rgba(110,110,110,0.65)"
-                              : rightShade?.color,
-                        }}
-                        aria-hidden="true"
-                      />
-                      <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                    </>
-                  )}
-                </button>
-                <div className="flex flex-col leading-tight text-right">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
-                    {rightShade?.id === 0 ? "" : "Right"}
-                  </span>
-                  <span className="text-[15px] font-semibold">
-                    {rightShade?.id === 0 ? "Add another" : rightShadeLine}
-                  </span>
+                <div className="pointer-events-auto flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSide("right");
+                      setComparePickerOpen(true);
+                    }}
+                    className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/40 text-white shadow-[0_12px_28px_rgba(0,0,0,0.55)] backdrop-blur"
+                    aria-label={rightShade?.id === 0 ? "Add another shade" : "Switch right shade"}
+                  >
+                    {rightShade?.id === 0 ? (
+                      <span className="text-2xl leading-none">+</span>
+                    ) : (
+                      <>
+                        <span
+                          className="h-9 w-9 rounded-full"
+                          style={{
+                            backgroundColor:
+                              rightShade?.color === "transparent"
+                                ? "rgba(110,110,110,0.65)"
+                                : rightShade?.color,
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
+                      </>
+                    )}
+                  </button>
+                  <div className="flex flex-col leading-tight text-right">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                      {rightShade?.id === 0 ? "" : "Right"}
+                    </span>
+                    <span className="text-[15px] font-semibold">
+                      {rightShade?.id === 0 ? "Add another" : rightShadeLine}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
 
             <div
               className={`absolute inset-x-0 bottom-0 z-40 ${
-                isMobileView && comparePickerOpen ? "pointer-events-auto" : "pointer-events-none hidden"
+                comparePickerOpen ? "pointer-events-auto" : "pointer-events-none hidden"
               }`}
               style={{
                 paddingBottom:
@@ -1895,7 +1920,9 @@ export default function VirtualTryOn() {
               }}
             >
               <div className="pointer-events-auto w-full px-3 pb-3 flex justify-center">
-                <div className="relative w-full max-w-[540px] rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-5 pb-5 flex flex-col gap-3">
+                <div
+                  className={`relative w-full ${isMobileView ? "max-w-[540px]" : "max-w-3xl"} rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-5 pb-5 flex flex-col gap-3`}
+                >
                   <button
                     type="button"
                     onClick={() => setComparePickerOpen(false)}
@@ -2079,169 +2106,366 @@ export default function VirtualTryOn() {
 
         {/* Bottom controls & single-shade rail */}
         {started && !snapshot && !compareEnabled && (
-          <div
-            className="absolute inset-x-0 bottom-0 pt-4 pb-7 bg-gradient-to-t from-black via-black/75 to-transparent z-10"
-            style={{
-              paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)",
-            }}
-          >
-            <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
-              <div className="w-full max-w-xl flex flex-col items-center gap-3">
-                <div className="w-full rounded-[24px] bg-black/85 border border-white/10 backdrop-blur-md shadow-[0_-14px_40px_rgba(0,0,0,0.55)] px-4 py-3">
-                  <div className="text-center text-[11px] uppercase tracking-[0.26em] text-white/75">
-                    Choose your shade
-                  </div>
-                  <div className="mt-2">
-                    <div
-                      ref={shadeScrollerRef}
-                      className="hide-scrollbar flex items-center justify-center gap-3.5 overflow-x-auto scroll-smooth py-1.5"
-                      style={{ touchAction: "pan-x" }}
+          <>
+            {/* Desktop: bottom overlay */}
+            {!isMobileView && (
+              <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none bg-gradient-to-t from-black via-black/85 to-transparent pt-6 pb-8">
+                <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-col items-center gap-3 px-6">
+                  <div className="relative w-full flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => scrollShades(-1)}
+                      className="absolute -left-1 h-10 w-10 rounded-full bg-black/65 border border-white/25 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] hover:border-white/40 transition"
+                      aria-label="Previous shade"
                     >
-                      {LIPSTICK_SHADES.map((shade) => {
-                        const isSelected =
-                          (activeSide === "left"
-                            ? leftShade.id
-                            : rightShade.id) === shade.id;
-                        const shadeColor =
-                          shade.color === "transparent"
-                            ? "rgba(110,110,110,0.65)"
-                            : shade.color;
-                        const shadeBackground =
-                          shade.color === "transparent"
-                            ? shadeColor
-                            : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%), ${shadeColor}`;
-                        return (
-                          <button
-                            key={shade.id}
-                            type="button"
-                            ref={(el) => {
-                              if (el) {
-                                shadeButtonsRef.current[shade.id] = el;
-                              } else {
-                                delete shadeButtonsRef.current[shade.id];
-                              }
-                            }}
-                            onClick={() => {
-                              if (activeSide === "left") setLeftShade(shade);
-                              else setRightShade(shade);
-                            }}
-                            className={`relative flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden transition-transform duration-200 ease-out ${
-                              isSelected ? "scale-105" : "hover:scale-105"
-                            }`}
-                            style={{
-                              background: shadeBackground,
-                              boxShadow: isSelected
-                                ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
-                                : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                            }}
-                            title={shade.name}
-                          >
-                            {shade.id === 0 && (
-                              <span className="absolute inset-0 flex items-center justify-center">
-                                <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                              </span>
-                            )}
-                            {isSelected && (
-                              <span className="absolute inset-[5px] sm:inset-[6px] rounded-full border border-white/80 opacity-90" />
-                            )}
-                          </button>
-                        );
-                      })}
+                      <svg
+                        className="mx-auto w-4.5 h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+
+                    <div className="w-full max-w-4xl rounded-[28px] bg-black/78 backdrop-blur-lg border border-white/10 shadow-[0_24px_70px_rgba(0,0,0,0.55)] px-8 py-5 flex flex-col items-center gap-3">
+                      <div className="w-full">
+                        <div
+                          ref={shadeScrollerRef}
+                          className="hide-scrollbar flex items-center justify-start gap-3.5 overflow-x-auto scroll-smooth py-1.5 px-2"
+                          style={{ touchAction: "pan-x" }}
+                        >
+                          {LIPSTICK_SHADES.map((shade) => {
+                            const isSelected =
+                              (activeSide === "left"
+                                ? leftShade.id
+                                : rightShade.id) === shade.id;
+                            const shadeColor =
+                              shade.color === "transparent"
+                                ? "rgba(110,110,110,0.65)"
+                                : shade.color;
+                            const shadeBackground =
+                              shade.color === "transparent"
+                                ? shadeColor
+                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%), ${shadeColor}`;
+                            return (
+                              <button
+                                key={shade.id}
+                                type="button"
+                                ref={(el) => {
+                                  if (el) {
+                                    shadeButtonsRef.current[shade.id] = el;
+                                  } else {
+                                    delete shadeButtonsRef.current[shade.id];
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (activeSide === "left") setLeftShade(shade);
+                                  else setRightShade(shade);
+                                }}
+                                className={`relative flex-shrink-0 w-11 h-11 rounded-full overflow-hidden transition-transform duration-200 ease-out ${
+                                  isSelected ? "scale-110" : "hover:scale-105"
+                                }`}
+                                style={{
+                                  background: shadeBackground,
+                                  boxShadow: isSelected
+                                    ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
+                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
+                                }}
+                                title={shade.name}
+                              >
+                                {shade.id === 0 && (
+                                  <span className="absolute inset-0 flex items-center justify-center">
+                                    <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
+                                  </span>
+                                )}
+                                {isSelected && (
+                                  <span className="absolute inset-[6px] rounded-full border border-white/80 opacity-90" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="text-center text-white leading-tight space-y-1">
+                        <div className="text-[11px] font-semibold text-white/75 tracking-[0.2em] uppercase">
+                          {PRODUCT_LINE_LABEL}
+                        </div>
+                        <div className="text-lg font-semibold text-white">
+                          {leftShadeLine}
+                        </div>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => scrollShades(1)}
+                      className="absolute -right-1 h-10 w-10 rounded-full bg-black/65 border border-white/25 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] hover:border-white/40 transition"
+                      aria-label="Next shade"
+                    >
+                      <svg
+                        className="mx-auto w-4.5 h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
                   </div>
 
-                  <div className="mt-2 text-center text-white leading-tight">
-                    <div className="text-[11px] sm:text-xs font-medium text-white/70 tracking-[0.16em] uppercase">
-                      {PRODUCT_LINE_LABEL}
-                    </div>
-                    <div className="mt-0.5 text-base sm:text-lg font-semibold text-white">
-                      {leftShadeLine}
-                    </div>
+                  <div className="w-full flex items-center justify-center gap-6 text-white text-opacity-90 pointer-events-auto pt-2">
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="m9 12 2 2 4-4"></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={toggleCompare}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
+                        compareEnabled
+                          ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
+                          : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
+                      }`}
+                      aria-pressed={compareEnabled}
+                      title={
+                        compareEnabled ? "Disable dual shades" : "Dual shades split"
+                      }
+                    >
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="9" cy="12" r="5" />
+                        <circle cx="15" cy="12" r="5" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={takeSnapshot}
+                      className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
+                    >
+                      <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
+                    </button>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                      </svg>
+                    </button>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Bottom buttons */}
-              <div className="w-full max-w-lg flex items-center justify-center gap-6 text-white text-opacity-90">
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                  <svg
-                    className="w-4 h-4 md:w-4.5 md:h-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="m9 12 2 2 4-4"></path>
-                  </svg>
-                </button>
-                <button
-                  onClick={toggleCompare}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
-                    compareEnabled
-                      ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
-                      : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
-                  }`}
-                  aria-pressed={compareEnabled}
-                  title={
-                    compareEnabled
-                      ? "Disable dual shades"
-                      : "Dual shades split"
-                  }
-                >
-                  <svg
-                    className="w-4 h-4 md:w-4.5 md:h-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="9" cy="12" r="5" />
-                    <circle cx="15" cy="12" r="5" />
-                  </svg>
-                </button>
-                <button
-                  onClick={takeSnapshot}
-                  className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
-                >
-                  <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
-                </button>
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                  <svg
-                    className="w-4 h-4 md:w-4.5 md:h-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-                  </svg>
-                </button>
-                <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                  <svg
-                    className="w-4 h-4 md:w-4.5 md:h-4.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="19" cy="12" r="1"></circle>
-                    <circle cx="5" cy="12" r="1"></circle>
-                  </svg>
-                </button>
+            {/* Mobile: bottom rail */}
+            {isMobileView && (
+              <div
+                className="absolute inset-x-0 bottom-0 pt-4 pb-7 bg-gradient-to-t from-black via-black/75 to-transparent z-10"
+                style={{
+                  paddingBottom:
+                    "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)",
+                }}
+              >
+                <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
+                  <div className="w-full max-w-xl flex flex-col items-center gap-3">
+                    <div className="w-full rounded-[24px] bg-black/85 border border-white/10 backdrop-blur-md shadow-[0_-14px_40px_rgba(0,0,0,0.55)] px-4 py-3">
+                      <div className="text-center text-[11px] uppercase tracking-[0.26em] text-white/75">
+                        Choose your shade
+                      </div>
+                      <div className="mt-2">
+                        <div
+                          ref={shadeScrollerRef}
+                          className="hide-scrollbar flex items-center justify-start gap-3.5 overflow-x-auto scroll-smooth py-1.5 px-2"
+                          style={{ touchAction: "pan-x" }}
+                        >
+                          {LIPSTICK_SHADES.map((shade) => {
+                            const isSelected =
+                              (activeSide === "left"
+                                ? leftShade.id
+                                : rightShade.id) === shade.id;
+                            const shadeColor =
+                              shade.color === "transparent"
+                                ? "rgba(110,110,110,0.65)"
+                                : shade.color;
+                            const shadeBackground =
+                              shade.color === "transparent"
+                                ? shadeColor
+                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%), ${shadeColor}`;
+                            return (
+                              <button
+                                key={shade.id}
+                                type="button"
+                                ref={(el) => {
+                                  if (el) {
+                                    shadeButtonsRef.current[shade.id] = el;
+                                  } else {
+                                    delete shadeButtonsRef.current[shade.id];
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (activeSide === "left") setLeftShade(shade);
+                                  else setRightShade(shade);
+                                }}
+                                className={`relative flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden transition-transform duration-200 ease-out ${
+                                  isSelected ? "scale-105" : "hover:scale-105"
+                                }`}
+                                style={{
+                                  background: shadeBackground,
+                                  boxShadow: isSelected
+                                    ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
+                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
+                                }}
+                                title={shade.name}
+                              >
+                                {shade.id === 0 && (
+                                  <span className="absolute inset-0 flex items-center justify-center">
+                                    <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
+                                  </span>
+                                )}
+                                {isSelected && (
+                                  <span className="absolute inset-[5px] sm:inset-[6px] rounded-full border border-white/80 opacity-90" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 text-center text-white leading-tight">
+                        <div className="text-[11px] sm:text-xs font-medium text-white/70 tracking-[0.16em] uppercase">
+                          {PRODUCT_LINE_LABEL}
+                        </div>
+                        <div className="mt-0.5 text-base sm:text-lg font-semibold text-white">
+                          {leftShadeLine}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom buttons */}
+                  <div className="w-full max-w-lg flex items-center justify-center gap-6 text-white text-opacity-90">
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="m9 12 2 2 4-4"></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={toggleCompare}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
+                        compareEnabled
+                          ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
+                          : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
+                      }`}
+                      aria-pressed={compareEnabled}
+                      title={
+                        compareEnabled
+                          ? "Disable dual shades"
+                          : "Dual shades split"
+                      }
+                    >
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="9" cy="12" r="5" />
+                        <circle cx="15" cy="12" r="5" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={takeSnapshot}
+                      className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
+                    >
+                      <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
+                    </button>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                      </svg>
+                    </button>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
+                      <svg
+                        className="w-4 h-4 md:w-4.5 md:h-4.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
