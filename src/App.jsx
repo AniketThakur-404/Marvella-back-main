@@ -22,6 +22,8 @@ import ProfileOverview from "@/components/profile/ProfileOverview"
 import Orders from "@/components/profile/Orders"
 import Addresses from "@/components/profile/Addresses"
 import Settings from "@/components/profile/Settings"
+import MobileBottomNav from "@/components/MobileBottomNav"
+import MobileTopBar from "@/components/MobileTopBar"
 import { Toaster } from "@/components/ui/sonner";
 
 
@@ -36,6 +38,7 @@ const App = () => {
   return (
     <main className="min-h-screen bg-background text-foreground">
       {!hideLayout && <Navbar />}
+      {!hideLayout && <MobileTopBar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/product/:id" element={<ProductDetails />} />
@@ -67,6 +70,7 @@ const App = () => {
       <ShopDrawer />
       <Toaster position="top-center" richColors closeButton />
       {!shouldHideFooter && <Footer />}
+      {!hideLayout && <MobileBottomNav />}
     </main>
   )
 }

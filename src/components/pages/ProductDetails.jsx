@@ -681,13 +681,13 @@ export default function ProductDetails({ data }) {
 
       {loadingProduct && !remoteProduct ? (
         <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
             Loading product details&hellip;
           </div>
         </div>
       ) : productError && !remoteProduct ? (
         <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Showing the sample product while we retry fetching the latest data.
           </div>
         </div>
@@ -720,7 +720,7 @@ export default function ProductDetails({ data }) {
                           onClick={() => setActiveImage(i)}
                           onMouseEnter={() => setActiveImage(i)}
                           aria-label={`Thumbnail ${i + 1}`}
-                          className={`relative flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center snap-start rounded-[32px] border-4 bg-white p-0.5 transition-all duration-200 outline-none hover:scale-105 ${isActive
+                          className={`relative flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center snap-start border-4 bg-white p-0.5 transition-all duration-200 outline-none hover:scale-105 ${isActive
                             ? "border-[#4a1f61] shadow-[0_0_0_12px_rgba(74,31,97,0.25)] z-10"
                             : "border-[#d7d2e8] hover:border-[#9b7fb3]"
                             }`}
@@ -728,7 +728,7 @@ export default function ProductDetails({ data }) {
                           <img
                             src={g}
                             alt={`thumb ${i + 1}`}
-                            className="h-16 w-full rounded-[20px] object-cover"
+                            className="h-16 w-full object-cover"
                             loading="lazy"
                           />
                         </button>
@@ -757,7 +757,7 @@ export default function ProductDetails({ data }) {
                     <Link
                       to="/ar/lipstick"
                       onClickCapture={(e) => e.stopPropagation()}
-                      className="absolute z-30 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-black shadow-lg backdrop-blur-md hover:bg-white hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-black/30 transition-all duration-200 top-4 right-4 bottom-auto lg:top-auto lg:bottom-4 lg:right-4"
+                      className="absolute z-30 inline-flex items-center gap-1.5 bg-white/90 px-3 py-1.5 text-xs font-medium text-black shadow-lg backdrop-blur-md hover:bg-white hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-black/30 transition-all duration-200 top-4 right-4 bottom-auto lg:top-auto lg:bottom-4 lg:right-4"
                       aria-label="Try virtually"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -769,7 +769,7 @@ export default function ProductDetails({ data }) {
                     {/* dots — lifted to avoid chip overlap */}
                     {gallery.length > 1 && (
                       <div
-                        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1.5 backdrop-blur-md shadow-md z-20 bottom-4 lg:bottom-14"
+                        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white/80 px-2.5 py-1.5 backdrop-blur-md shadow-md z-20 bottom-4 lg:bottom-14"
                       >
                         {gallery.map((_, i) => (
                           <button
@@ -792,7 +792,7 @@ export default function ProductDetails({ data }) {
                             key={g + i}
                             onClick={() => setActiveImage(i)}
                             onMouseEnter={() => setActiveImage(i)}
-                            className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 transition-all duration-200 ${i === activeImage ? "ring-black shadow-lg scale-105" : "ring-neutral-200 hover:ring-neutral-400"}`}
+                            className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 overflow-hidden ring-2 transition-all duration-200 ${i === activeImage ? "ring-black shadow-lg scale-105" : "ring-neutral-200 hover:ring-neutral-400"}`}
                             aria-label={`Image ${i + 1}`}
                           >
                             <img src={g} alt={`thumb ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
@@ -815,7 +815,7 @@ export default function ProductDetails({ data }) {
                 <div className="flex flex-wrap items-center gap-3 text-[var(--fg-muted)] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
                   <RatingStars value={p.rating} />
                   <span className="text-sm font-medium">({p.rating}) · {p.reviews} reviews</span>
-                  <Badge variant="outline" className="ml-2 bg-[var(--chip-bg)] border-transparent text-[var(--fg)] px-3 py-1 rounded-full">
+                  <Badge variant="outline" className="ml-2 bg-[var(--chip-bg)] border-transparent text-[var(--fg)] px-3 py-1">
                     <BadgeCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> Cevonne Verified
                   </Badge>
                 </div>
@@ -866,7 +866,7 @@ export default function ProductDetails({ data }) {
                           </button>
 
                           {/* Tooltip */}
-                          <span className={`absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-lg shadow-xl transition-all duration-200 pointer-events-none whitespace-nowrap z-20 ${isActive && showTooltip ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
+                          <span className={`absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium shadow-xl transition-all duration-200 pointer-events-none whitespace-nowrap z-20 ${isActive && showTooltip ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
                             }`}>
                             {s.name}
                             {/* Arrow */}
@@ -883,7 +883,7 @@ export default function ProductDetails({ data }) {
               <section ref={ctaRef}>
                 <div className="flex flex-col gap-3 mt-2">
                   <div className="flex items-center gap-3">
-                    <div className="inline-flex items-center rounded-full border px-2 border-[var(--divider)]">
+                    <div className="inline-flex items-center border px-2 border-[var(--divider)]">
                       <button className="px-3 py-1 text-lg text-[var(--fg)]" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
                       <input
                         value={qty}
@@ -899,12 +899,12 @@ export default function ProductDetails({ data }) {
                       <Button
                         type="button"
                         onClick={handleAddToCart}
-                        className="rounded-full px-5 sm:px-6 min-h-10 sm:min-h-11"
+                        className="px-5 sm:px-6 min-h-10 sm:min-h-11"
                       >
                         <ShoppingCart className="h-4 w-4 mr-2" />
                         {isActiveShadeInCart ? "In Cart" : "Add to Cart"}
                       </Button>
-                      <Button variant="outline" className="rounded-full px-5 sm:px-6 min-h-10 sm:min-h-11">
+                      <Button variant="outline" className="px-5 sm:px-6 min-h-10 sm:min-h-11">
                         Buy Now
                       </Button>
                     </div>
@@ -915,12 +915,12 @@ export default function ProductDetails({ data }) {
                     <Button
                       type="button"
                       onClick={handleAddToCart}
-                      className="rounded-full w-full min-h-11"
+                      className="w-full min-h-11"
                       aria-label={isActiveShadeInCart ? "In Cart" : "Add to Cart"}
                     >
                       <ShoppingCart className="h-5 w-5" />
                     </Button>
-                    <Button variant="outline" className="rounded-full w-full min-h-11">
+                    <Button variant="outline" className="w-full min-h-11">
                       Buy Now
                     </Button>
                   </div>
@@ -946,22 +946,22 @@ export default function ProductDetails({ data }) {
                       type="button"
                       aria-pressed={isActiveShadeWishlisted}
                       onClick={handleToggleWishlist}
-                      className={`p-2 rounded-full border transition-colors ${isActiveShadeWishlisted
+                      className={`p-2 border transition-colors ${isActiveShadeWishlisted
                         ? "border-rose-400/80 text-rose-400 bg-rose-400/10 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
                         : "border-[var(--divider)] text-[var(--fg)] hover:border-rose-400/60 hover:text-rose-400"
                         }`}
                     >
                       <Heart className="h-4 w-4" />
                     </button>
-                    <button className="p-2 rounded-full border border-[var(--divider)] text-[var(--fg)]"><Share2 className="h-4 w-4" /></button>
+                    <button className="p-2 border border-[var(--divider)] text-[var(--fg)]"><Share2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               </section>
 
               <section className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs mt-4">
-                <div className="flex items-center gap-2 rounded-lg border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Truck className="h-4 w-4" /> {p.shipping}</div>
-                <div className="flex items-center gap-2 rounded-lg border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><ShieldCheck className="h-4 w-4" /> Secure payments</div>
-                <div className="flex items-center gap-2 rounded-lg border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Recycle className="h-4 w-4" /> Easy Returns</div>
+                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Truck className="h-4 w-4" /> {p.shipping}</div>
+                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><ShieldCheck className="h-4 w-4" /> Secure payments</div>
+                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Recycle className="h-4 w-4" /> Easy Returns</div>
               </section>
 
               <Separator className="bg-[var(--divider)]" />
@@ -973,14 +973,14 @@ export default function ProductDetails({ data }) {
                   </h2>
                   <div className="grid grid-cols-1 gap-3">
                     {p.benefits?.map((b, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--card-bg)] border border-[var(--divider)] transition-all hover:shadow-sm hover:border-[var(--fg-muted)]">
+                      <div key={i} className="flex items-start gap-3 p-3 bg-[var(--card-bg)] border border-[var(--divider)] transition-all hover:shadow-sm hover:border-[var(--fg-muted)]">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
                         <span className="text-sm text-[var(--fg-muted)]">{b}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-2xl border p-5 border-[var(--divider)] bg-[var(--card-bg)]">
+                <div className="border p-5 border-[var(--divider)] bg-[var(--card-bg)]">
                   <h3 className="font-semibold mb-4 text-[var(--fg)] flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-amber-400" /> Ingredient highlights
                   </h3>
@@ -997,22 +997,22 @@ export default function ProductDetails({ data }) {
 
               <section className="mt-8">
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="grid grid-cols-3 w-full bg-[var(--chip-bg)] p-1 rounded-full">
+                  <TabsList className="grid grid-cols-3 w-full bg-[var(--chip-bg)] p-1">
                     <TabsTrigger
                       value="details"
-                      className="rounded-full data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
+                      className="data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
                     >
                       Details
                     </TabsTrigger>
                     <TabsTrigger
                       value="claims"
-                      className="rounded-full data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
+                      className="data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
                     >
                       Claims
                     </TabsTrigger>
                     <TabsTrigger
                       value="faqs"
-                      className="rounded-full data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
+                      className="data-[state=active]:bg-[var(--fg)] data-[state=active]:text-[var(--card-bg)] transition-all"
                     >
                       FAQs
                     </TabsTrigger>
@@ -1049,7 +1049,7 @@ export default function ProductDetails({ data }) {
               {p.ingredients_highlight?.map((it, i) => (
                 <div
                   key={i}
-                  className="group p-6 rounded-2xl border border-[var(--divider)] bg-[var(--card-bg)] backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:border-[var(--fg-muted)] hover:-translate-y-1"
+                  className="group p-6 border border-[var(--divider)] bg-[var(--card-bg)] backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:border-[var(--fg-muted)] hover:-translate-y-1"
                 >
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-full bg-[var(--chip-bg)] group-hover:bg-[var(--fg)] group-hover:text-[var(--card-bg)] transition-colors">
@@ -1066,11 +1066,11 @@ export default function ProductDetails({ data }) {
           </div>
           <div className="w-full lg:w-1/2 order-1 lg:order-2 flex justify-center lg:justify-end">
             <div className="relative w-full max-w-[280px] sm:max-w-[320px] lg:max-w-none flex justify-center">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[var(--chip-bg)] to-transparent rounded-[3rem] -rotate-3 scale-100 lg:-rotate-6 lg:scale-105 -z-10" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-[var(--chip-bg)] to-transparent -rotate-3 scale-100 lg:-rotate-6 lg:scale-105 -z-10" />
               <img
                 src={resolveAsset(p.hero?.image) || heroSrc}
                 alt="Product Ingredients"
-                className="rounded-[2.5rem] w-full h-auto object-cover shadow-2xl rotate-2 lg:rotate-3 transition-transform duration-700 hover:rotate-0"
+                className="w-full h-auto object-cover shadow-2xl rotate-2 lg:rotate-3 transition-transform duration-700 hover:rotate-0"
                 loading="lazy"
               />
             </div>
@@ -1144,7 +1144,7 @@ export default function ProductDetails({ data }) {
                 <SmoothImage
                   src={getShadeImageByIndex(sectionImgIdx)}
                   alt={`Shade ${sectionImgIdx + 1}`}
-                  className="rounded-2xl w-full h-auto"
+                  className="w-full h-auto"
                 />
                 <div className="mt-3 flex items-center justify-center gap-1.5">
                   {p.shades.map((_, i) => (
@@ -1165,7 +1165,7 @@ export default function ProductDetails({ data }) {
                       setSectionImgIdx(i);
                       shadeRefs.current[i]?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }}
-                    className={`cursor-pointer rounded-2xl border p-4 transition-all duration-300 ${sectionImgIdx === i ? "border-black bg-[var(--card-bg)]" : "border-[var(--divider)]"
+                    className={`cursor-pointer border p-4 transition-all duration-300 ${sectionImgIdx === i ? "border-black bg-[var(--card-bg)]" : "border-[var(--divider)]"
                       }`}
                   >
                     <div className="flex items-center gap-3">
@@ -1213,10 +1213,10 @@ export default function ProductDetails({ data }) {
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[var(--divider)] bg-[var(--card-bg)] p-6 text-center">
+            <div className="border border-[var(--divider)] bg-[var(--card-bg)] p-6 text-center">
               <h3 className="font-semibold text-[var(--fg)] mb-2">Share your thoughts</h3>
               <p className="text-sm text-[var(--fg-muted)] mb-4">If you’ve used this product, share your thoughts with other customers</p>
-              <Button variant="outline" className="w-full rounded-full border-[var(--fg)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--card-bg)]">
+              <Button variant="outline" className="w-full border-[var(--fg)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--card-bg)]">
                 Write a Review
               </Button>
             </div>
@@ -1227,7 +1227,7 @@ export default function ProductDetails({ data }) {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--divider)]">
               <span className="font-medium text-[var(--fg)]">{filteredAndSortedReviews.length} Reviews</span>
               <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="w-[160px] rounded-full border-[var(--divider)] bg-transparent"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                <SelectTrigger className="w-[160px] border-[var(--divider)] bg-transparent"><SelectValue placeholder="Sort by" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="newest">Newest</SelectItem>
                   <SelectItem value="oldest">Oldest</SelectItem>
@@ -1283,11 +1283,11 @@ export default function ProductDetails({ data }) {
       </section>
 
       {/* ===== YOU MAY ALSO LIKE ===== */}
-      <section className="w-full px-4 sm:px-6 lg:px-12 py-16 md:py-24 bg-neutral-50" data-bg-key="recommendations">
+      <section className="w-full bg-white py-10 sm:px-6 lg:px-1" data-bg-key="recommendations">
         <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)] mb-8 text-center">You May Also Like</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="mx-auto flex w-full snap-x snap-mandatory gap-2 sm:gap-1 overflow-x-auto pb-4 sm:grid sm:max-w-screen-2xl sm:grid-cols-2 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 no-scrollbar">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Link to={`/product/${p.id}`} key={i} className="group relative flex flex-col bg-white rounded-xl overflow-hidden border border-neutral-200 hover:shadow-lg transition-all duration-300">
+            <Link to={`/product/${p.id}`} key={i} className="group relative flex min-w-[85vw] flex-col justify-between overflow-hidden border border-neutral-200 bg-white text-center shadow-sm min-h-[420px] snap-center sm:min-w-0 hover:shadow-lg transition-all duration-300">
               {/* Image Area */}
               <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
                 <img
@@ -1298,7 +1298,7 @@ export default function ProductDetails({ data }) {
 
                 {/* Badges */}
                 <div className="absolute left-2 top-2 flex flex-col gap-1">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-full bg-white/90 backdrop-blur text-black shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/90 backdrop-blur text-black shadow-sm">
                     <Video className="h-3 w-3" /> Try On
                   </span>
                 </div>
@@ -1306,7 +1306,7 @@ export default function ProductDetails({ data }) {
                 {/* Wishlist */}
                 <button
                   onClick={(e) => { e.preventDefault(); toggleWishlist(p); }}
-                  className="absolute right-2 top-2 p-1.5 rounded-full bg-white/80 backdrop-blur hover:bg-white text-neutral-600 hover:text-red-500 transition-colors"
+                  className="absolute right-2 top-2 p-1.5 bg-white/80 backdrop-blur hover:bg-white text-neutral-600 hover:text-red-500 transition-colors"
                 >
                   <Heart className="h-4 w-4" />
                 </button>
@@ -1331,7 +1331,7 @@ export default function ProductDetails({ data }) {
                 <Button
                   variant="outline"
                   onClick={(e) => { e.preventDefault(); addToCart(p); }}
-                  className="w-full rounded-full text-xs h-9 border-neutral-200 hover:border-black hover:bg-black hover:text-white transition-colors"
+                  className="w-full text-xs h-9 border-neutral-200 hover:border-black hover:bg-black hover:text-white transition-colors"
                 >
                   Add to Cart
                 </Button>
@@ -1360,7 +1360,7 @@ function StickyProductBar({ product, activeShade, activeShadeLabel, onAddToCart,
       <div className="w-full px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-4">
         {/* Left: Product Info (hidden on mobile) */}
         <div className="hidden md:flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full overflow-hidden border border-neutral-200">
+          <div className="h-10 w-10 overflow-hidden border border-neutral-200">
             <img
               src={resolveAsset(activeShade?.thumb) || resolveAsset(product.hero?.image)}
               alt={product.title}
@@ -1388,7 +1388,7 @@ function StickyProductBar({ product, activeShade, activeShadeLabel, onAddToCart,
 
         {/* Right: CTA */}
         <div className="flex items-center gap-2">
-          <Button onClick={onAddToCart} className="rounded-full bg-black text-white hover:bg-neutral-800">
+          <Button onClick={onAddToCart} className="bg-black text-white hover:bg-neutral-800">
             Add to Cart - {product.currency}{product.price}
           </Button>
         </div>

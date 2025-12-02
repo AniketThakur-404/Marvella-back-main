@@ -39,13 +39,13 @@ const ProductCard = () => {
   const remaining = Math.max(products.length - INITIAL_VISIBLE, 0);
 
   return (
-    <section className="w-full bg-white px-4 py-10 sm:px-6 lg:px-10">
+    <section className="w-full bg-white py-10 sm:px-6 lg:px-1">
       {/* Product grid */}
-      <div className="mx-auto grid max-w-screen-2xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mx-auto flex w-full snap-x snap-mandatory gap-2 sm:gap-1 overflow-x-auto pb-4 sm:grid sm:max-w-screen-2xl sm:grid-cols-2 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 no-scrollbar">
         {visible.map((product) => (
           <div
             key={product.id}
-            className="relative flex flex-col justify-between overflow-hidden rounded-[32px] border border-neutral-200 bg-white text-center shadow-sm min-h-[420px]"
+            className="relative flex min-w-[85vw] flex-col justify-between overflow-hidden border border-neutral-200 bg-white text-center shadow-sm min-h-[420px] snap-center sm:min-w-0"
           >
             {/* Background behind everything */}
             <img

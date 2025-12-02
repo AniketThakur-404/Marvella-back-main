@@ -35,7 +35,7 @@ const Navbar = () => {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-50 w-full transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300
+        className={`hidden md:block fixed inset-x-0 top-0 z-50 w-full transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300
         ${solid
             ? "bg-white/95 border-b border-neutral-200 backdrop-blur supports-[backdrop-filter]:bg-white shadow-sm"
             : "bg-transparent border-transparent"
