@@ -1093,7 +1093,7 @@ export default function ProductDetails({ data }) {
               <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 text-white">
                 <div className="pointer-events-none absolute bottom-6 sm:bottom-8 left-4 sm:left-6 z-10 max-w-xl text-white md:bottom-12">
                   <h3 className="pointer-events-auto mb-2 sm:mb-3 text-xl sm:text-2xl md:text-4xl font-semibold tracking-wide">
-                    Cevonne Beautè
+                    Cevonne
                   </h3>
                   <p className="text-lg md:text-xl text-white/90 leading-relaxed max-w-2xl">
                     Velvet matte color and intense longwear adorn lips with immediate

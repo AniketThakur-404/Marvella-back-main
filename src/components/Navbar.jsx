@@ -4,7 +4,7 @@ import { Menu, Search, Heart, User, Phone, ShoppingCart } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { useShop } from "@/context/ShopContext"
-import logo from "@/assets/logos/cevonne_logo.svg"
+import logo from "@/assets/logos/cevonne_main_logo.png"
 
 const NAV_H_MOBILE = "h-16"     // 64px
 const NAV_H_DESKTOP = "md:h-20" // 80px

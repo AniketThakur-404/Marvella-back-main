@@ -66,7 +66,7 @@ const IntroVideo3 = () => {
       {/* Copy */}
       <div className="pointer-events-none absolute left-4 right-4 bottom-8 z-10 mx-auto max-w-[520px] text-center text-white sm:left-8 sm:right-auto sm:bottom-10 sm:text-left md:bottom-14">
         <h2 className="pointer-events-auto mb-3 text-2xl font-semibold tracking-wide sm:text-3xl md:text-4xl">
-          Cevonne Beautè
+          Cevonne
         </h2>
         <p className="pointer-events-auto max-w-[380px] text-sm leading-relaxed text-white/85 sm:max-w-[480px] sm:text-[15px]">
           Velvet matte color and intense longwear adorn lips with immediate
