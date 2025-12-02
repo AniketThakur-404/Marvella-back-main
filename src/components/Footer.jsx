@@ -1,5 +1,6 @@
 import React from "react";
-import logo from "@/assets/logos/logo.svg";
+import logo from "@/assets/logos/cevonne_logo.svg";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -36,7 +37,7 @@ export default function Footer() {
 
           {/* ABOUT */}
           <div>
-            <h6 className="text-[10px] tracking-[0.22em] uppercase text-neutral-500 mb-4">About Marvellè Beautè</h6>
+            <h6 className="text-[10px] tracking-[0.22em] uppercase text-neutral-500 mb-4">About Cevonne</h6>
             <ul className="space-y-3 text-sm" style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
               <li><a href="#shows" className="hover:underline underline-offset-2">Fashion Shows</a></li>
               <li><a href="#arts" className="hover:underline underline-offset-2">Arts & Culture</a></li>
@@ -44,7 +45,7 @@ export default function Footer() {
               <li><a href="#sustainability" className="hover:underline underline-offset-2">Sustainability</a></li>
               <li><a href="#news" className="hover:underline underline-offset-2">Latest News</a></li>
               <li><a href="#careers" className="hover:underline underline-offset-2">Careers</a></li>
-              <li><a href="#foundation" className="hover:underline underline-offset-2">Foundation Marvellè Beautè</a></li>
+              <li><a href="#foundation" className="hover:underline underline-offset-2">Foundation Cevonne</a></li>
             </ul>
           </div>
 
@@ -53,7 +54,7 @@ export default function Footer() {
             <h6 className="text-[10px] tracking-[0.22em] uppercase text-neutral-500 mb-4">Email sign-up</h6>
             <p className="text-sm leading-7" style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
               <a href="#signup" className="underline underline-offset-2 hover:no-underline">Sign up</a>{" "}
-              for Marvellè Beautè emails and receive the latest news from the Maison, including exclusive online pre-launches and new collections
+              for Cevonne emails and receive the latest news from the Maison, including exclusive online pre-launches and new collections
             </p>
             <a href="#follow" className="mt-6 inline-block text-sm hover:underline underline-offset-2" style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
               Follow Us
@@ -83,13 +84,15 @@ export default function Footer() {
               style={{ fontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif' }}
               aria-label="Louis Vuitton wordmark"
             >
-            <img src={logo} alt="" className="h-5 w-auto lg:h-9" />
+              <Link to="/">
+                <img src={logo} alt="" className="h-8 w-auto lg:h-12" />
+              </Link>
             </div>
           </div>
 
           {/* Legal */}
           <nav className="order-3 md:order-3 md:w-1/3 flex items-center justify-start md:justify-end gap-6 text-sm text-neutral-700"
-               style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
+            style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
             <a href="#sitemap" className="hover:underline underline-offset-2">Sitemap</a>
             <a href="#legal" className="hover:underline underline-offset-2">Legal & privacy</a>
             <a href="#cookies" className="hover:underline underline-offset-2">Cookies</a>

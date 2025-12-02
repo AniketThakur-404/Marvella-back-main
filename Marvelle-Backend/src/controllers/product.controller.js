@@ -18,6 +18,58 @@ const shadeSchema = z.object({
   quantity: z.number().int().min(0).optional(),
 });
 
+const experienceSchema = z
+  .object({
+    subtitle: z.string().optional(),
+    categoryPath: z.array(z.string()).optional(),
+    longDescription: z.string().optional(),
+    videoUrl: z.string().optional(),
+    hero: z
+      .object({
+        image: z.string().optional(),
+        objectPosition: z.string().optional(),
+        bg: z.string().optional(),
+        overlay: z.string().optional(),
+        wheelScrollSwitch: z.boolean().optional(),
+      })
+      .optional(),
+    theme: z
+      .object({
+        defaultBg: z.string().optional(),
+        bgScenes: z.record(z.string()).optional(),
+        bgTone: z.record(z.string()).optional(),
+      })
+      .optional(),
+    gallery: z.array(z.string()).optional(),
+    rating: z.number().optional(),
+    reviewCount: z.number().optional(),
+    badges: z.array(z.string()).optional(),
+    benefits: z.array(z.string()).optional(),
+    ingredientsHighlight: z
+      .array(
+        z.object({
+          name: z.string().optional(),
+          why: z.string().optional(),
+        })
+      )
+      .optional(),
+    howToUse: z.array(z.string()).optional(),
+    claims: z.array(z.string()).optional(),
+    disclaimer: z.string().optional(),
+    faqs: z
+      .array(
+        z.object({
+          q: z.string(),
+          a: z.string(),
+        })
+      )
+      .optional(),
+    shipping: z.string().optional(),
+    returns: z.string().optional(),
+  })
+  .partial()
+  .passthrough();
+
 const productSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
@@ -27,6 +79,7 @@ const productSchema = z.object({
   collectionId: z.string().nullish(),
   images: z.array(imageSchema).optional(),
   shades: z.array(shadeSchema).optional(),
+  experience: experienceSchema.optional(),
 });
 
 const productInclude = {
@@ -69,6 +122,7 @@ const buildProductData = (payload) => ({
   description: payload.description,
   finish: payload.finish,
   basePrice: toDecimalString(payload.basePrice),
+  experience: payload.experience,
   collection: payload.collectionId
     ? { connect: { id: payload.collectionId } }
     : undefined,
@@ -230,6 +284,7 @@ exports.updateProduct = async (req, res, next) => {
         slug: payload.slug,
         description: payload.description,
         finish: payload.finish,
+        experience: payload.experience,
         basePrice:
           payload.basePrice !== undefined
             ? toDecimalString(payload.basePrice)

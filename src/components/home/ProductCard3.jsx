@@ -17,18 +17,18 @@ import image12 from "@/assets/images/product12.png";
 import bg from "@/assets/background/card-bg.svg";
 
 const products = [
-  { id: 1, image: image1, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 2, image: image2, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 3, image: image3, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 4, image: image4, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 5, image: image5, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 6, image: image6, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 7, image: image7, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 8, image: image8, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 9, image: image9, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 10, image: image10, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 11, image: image11, name: "Marvellè Beautè - Satin Lipstick" },
-  { id: 12, image: image12, name: "Marvellè Beautè - Satin Lipstick" },
+  { id: 1, image: image1, name: "Cevonne - Satin Lipstick" },
+  { id: 2, image: image2, name: "Cevonne - Satin Lipstick" },
+  { id: 3, image: image3, name: "Cevonne - Satin Lipstick" },
+  { id: 4, image: image4, name: "Cevonne - Satin Lipstick" },
+  { id: 5, image: image5, name: "Cevonne - Satin Lipstick" },
+  { id: 6, image: image6, name: "Cevonne - Satin Lipstick" },
+  { id: 7, image: image7, name: "Cevonne - Satin Lipstick" },
+  { id: 8, image: image8, name: "Cevonne - Satin Lipstick" },
+  { id: 9, image: image9, name: "Cevonne - Satin Lipstick" },
+  { id: 10, image: image10, name: "Cevonne - Satin Lipstick" },
+  { id: 11, image: image11, name: "Cevonne - Satin Lipstick" },
+  { id: 12, image: image12, name: "Cevonne - Satin Lipstick" },
 ];
 
 const INITIAL_VISIBLE = 4;
@@ -39,11 +39,14 @@ const ProductCard3 = () => {
   const remaining = Math.max(products.length - INITIAL_VISIBLE, 0);
 
   return (
-    <section className="w-full bg-white">
+    <section className="w-full bg-white px-4 py-10 sm:px-6 lg:px-10">
       {/* Product grid */}
-      <div className="grid grid-cols-2 gap-0 md:grid-cols-3 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-screen-2xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map((product) => (
-          <div key={product.id} className="relative flex flex-col justify-between text-center">
+          <div
+            key={product.id}
+            className="relative flex flex-col justify-between overflow-hidden rounded-[32px] border border-neutral-200 bg-white text-center shadow-sm min-h-[420px]"
+          >
             {/* Background behind everything */}
             <img
               src={bg}

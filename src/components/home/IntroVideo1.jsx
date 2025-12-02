@@ -64,18 +64,18 @@ const IntroVideo1 = () => {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_80%_at_0%_100%,rgba(0,0,0,0.55)_0%,transparent_60%)]" />
 
       {/* Copy */}
-      <div className="pointer-events-none absolute bottom-8 left-6 z-10 max-w-xl text-white sm:left-10 sm:bottom-10 md:bottom-14">
+      <div className="pointer-events-none absolute left-4 right-4 bottom-8 z-10 mx-auto max-w-[520px] text-center text-white sm:left-8 sm:right-auto sm:bottom-10 sm:text-left md:bottom-14">
         <h2 className="pointer-events-auto mb-3 text-2xl font-semibold tracking-wide sm:text-3xl md:text-4xl">
-          Marvellè Beautè
+          Cevonne Beautè
         </h2>
-        <p className="pointer-events-auto max-w-lg text-sm leading-relaxed text-white/85 sm:text-[15px]">
+        <p className="pointer-events-auto max-w-[380px] text-sm leading-relaxed text-white/85 sm:max-w-[480px] sm:text-[15px]">
           Velvet matte color and intense longwear adorn lips with immediate
           moisture and rich tones — in 28 irresistible shades.
         </p>
       </div>
 
       {/* Controls */}
-      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-3 sm:bottom-6 sm:right-6">
+      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 sm:gap-3 sm:bottom-6 sm:right-6">
         <button
           onClick={togglePlay}
           aria-label={isPlaying ? "Pause video" : "Play video"}

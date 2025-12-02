@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -40,6 +41,7 @@ const FORMAT_ACTIONS = [
 
 const SECTIONS = [
   { value: "details", label: "Details", description: "Core product information" },
+  { value: "story", label: "Story", description: "Product page content & theme" },
   { value: "inventory", label: "Inventory", description: "Stock levels and availability" },
   { value: "media", label: "Media", description: "Images and visual assets" },
   { value: "shipping", label: "Shipping", description: "Packaging and fulfilment" },
@@ -99,10 +101,46 @@ function ProductFormBase({
     inventorySku: "",
     onlineSelling: true,
     inStoreSelling: false,
+    experienceSubtitle: "",
+    experienceCategoryPath: "",
+    experienceLongDescription: "",
+    experienceVideoUrl: "",
+    experienceHeroImage: "",
+    experienceHeroObjectPosition: "",
+    experienceHeroBg: "",
+    experienceHeroOverlay: "",
+    experienceThemeDefaultBg: "",
+    experienceSceneBgHero: "",
+    experienceSceneBgFeatures: "",
+    experienceSceneBgIngredients: "",
+    experienceSceneBgVideo: "",
+    experienceSceneBgShades: "",
+    experienceSceneBgReviews: "",
+    experienceToneHero: "",
+    experienceToneFeatures: "",
+    experienceToneIngredients: "",
+    experienceToneVideo: "",
+    experienceToneShades: "",
+    experienceToneReviews: "",
+    experienceGallery: "",
+    experienceBadges: "",
+    experienceBenefits: "",
+    experienceHowToUse: "",
+    experienceClaims: "",
+    experienceDisclaimer: "",
+    experienceShipping: "",
+    experienceReturns: "",
+    experienceRating: "",
+    experienceReviewCount: "",
   };
 
   const { register, handleSubmit, setValue, reset, getValues, watch, control } = useForm({
-    defaultValues: { ...defaultValues, shades: [createEmptyShade()] },
+    defaultValues: {
+      ...defaultValues,
+      shades: [createEmptyShade()],
+      experienceIngredients: [{ name: "", why: "" }],
+      experienceFaqs: [{ q: "", a: "" }],
+    },
   });
 
   const [manualSlug, setManualSlug] = useState(false);
@@ -111,6 +149,7 @@ function ProductFormBase({
   const [submitting, setSubmitting] = useState(false);
   const [descriptionFileName, setDescriptionFileName] = useState("");
   const [activeTab, setActiveTab] = useState(SECTIONS[0].value);
+  const [heroUploading, setHeroUploading] = useState(false);
 
   const {
     fields: shadeFields,
@@ -121,11 +160,30 @@ function ProductFormBase({
     control,
     name: "shades",
   });
+  const {
+    fields: ingredientFields,
+    append: appendIngredient,
+    remove: removeIngredient,
+    replace: replaceIngredients,
+  } = useFieldArray({
+    control,
+    name: "experienceIngredients",
+  });
+  const {
+    fields: faqFields,
+    append: appendFaq,
+    remove: removeFaq,
+    replace: replaceFaqs,
+  } = useFieldArray({
+    control,
+    name: "experienceFaqs",
+  });
 
   // NOTE: no TS generics here; this is .jsx
   const editorRef = useRef(null);
   const textFileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const heroImageInputRef = useRef(null);
 
   // Keep description in a ref to avoid re-renders while typing
   const descriptionRef = useRef("");
@@ -145,8 +203,10 @@ function ProductFormBase({
       setActiveTab(SECTIONS[0].value);
       setExistingImages([]);
       replaceShades([createEmptyShade()]);
+      replaceIngredients([{ name: "", why: "" }]);
+      replaceFaqs([{ q: "", a: "" }]);
     }
-  }, [isDialog, open, reset, replaceShades]);
+  }, [isDialog, open, reset, replaceFaqs, replaceIngredients, replaceShades]);
 
   // keep the field registered, but don't mirror on each keystroke
   useEffect(() => {
@@ -154,29 +214,100 @@ function ProductFormBase({
   }, [register]);
 
   // Map product to form values (used on edit)
-  const mapProductToForm = (prod) => ({
-    ...defaultValues,
-    name: prod?.name ?? "",
-    slug: prod?.slug ?? "",
-    description: prod?.description ?? "",
-    finish: prod?.finish ?? "",
-    basePrice: prod?.basePrice != null ? String(prod.basePrice) : "",
-    collectionId: prod?.collectionId ?? "",
-    compareAtPrice: prod?.compareAtPrice != null ? String(prod.compareAtPrice) : "",
-    shades: Array.isArray(prod?.shades)
-      ? prod.shades.map((shade) => ({
-          id: shade.id ?? generateShadeKey(),
-          name: shade.name ?? "",
-          hexColor: shade.hexColor ?? "#a855f7",
-          sku: shade.sku ?? "",
-          price:
-            typeof shade.price === "string" || typeof shade.price === "number"
-              ? String(shade.price)
-              : "",
-          quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
-        }))
-      : [createEmptyShade()],
-  });
+  const mapProductToForm = (prod) => {
+    const experience = prod?.experience ?? {};
+    const joinLines = (value) => {
+      if (Array.isArray(value)) return value.join("\n");
+      if (typeof value === "string") return value;
+      return "";
+    };
+    const galleryFromImages = Array.isArray(prod?.images)
+      ? prod.images.map((image) => image.url).filter(Boolean)
+      : [];
+    const ingredientList =
+      experience.ingredientsHighlight ?? experience.ingredients_highlight ?? [];
+    const faqList = Array.isArray(experience.faqs) ? experience.faqs : [];
+
+    return {
+      ...defaultValues,
+      name: prod?.name ?? "",
+      slug: prod?.slug ?? "",
+      description: prod?.description ?? "",
+      finish: prod?.finish ?? "",
+      basePrice: prod?.basePrice != null ? String(prod.basePrice) : "",
+      collectionId: prod?.collectionId ?? "",
+      compareAtPrice: prod?.compareAtPrice != null ? String(prod.compareAtPrice) : "",
+      experienceSubtitle: experience.subtitle ?? "",
+      experienceCategoryPath: Array.isArray(experience.categoryPath)
+        ? experience.categoryPath.join("\n")
+        : "",
+      experienceLongDescription: experience.longDescription ?? prod?.description ?? "",
+      experienceVideoUrl: experience.videoUrl ?? "",
+      experienceHeroImage: experience.hero?.image ?? prod?.images?.[0]?.url ?? "",
+      experienceHeroObjectPosition: experience.hero?.objectPosition ?? "",
+      experienceHeroBg: experience.hero?.bg ?? "",
+      experienceHeroOverlay: experience.hero?.overlay ?? "",
+      experienceThemeDefaultBg: experience.theme?.defaultBg ?? "",
+      experienceSceneBgHero: experience.theme?.bgScenes?.hero ?? "",
+      experienceSceneBgFeatures: experience.theme?.bgScenes?.features ?? "",
+      experienceSceneBgIngredients: experience.theme?.bgScenes?.ingredients ?? "",
+      experienceSceneBgVideo: experience.theme?.bgScenes?.video ?? "",
+      experienceSceneBgShades: experience.theme?.bgScenes?.shades ?? "",
+      experienceSceneBgReviews: experience.theme?.bgScenes?.reviews ?? "",
+      experienceToneHero: experience.theme?.bgTone?.hero ?? "",
+      experienceToneFeatures: experience.theme?.bgTone?.features ?? "",
+      experienceToneIngredients: experience.theme?.bgTone?.ingredients ?? "",
+      experienceToneVideo: experience.theme?.bgTone?.video ?? "",
+      experienceToneShades: experience.theme?.bgTone?.shades ?? "",
+      experienceToneReviews: experience.theme?.bgTone?.reviews ?? "",
+      experienceGallery: joinLines(experience.gallery ?? galleryFromImages),
+      experienceBadges: joinLines(experience.badges),
+      experienceBenefits: joinLines(experience.benefits),
+      experienceHowToUse: joinLines(experience.howToUse ?? experience.how_to_use),
+      experienceClaims: joinLines(experience.claims),
+      experienceDisclaimer: experience.disclaimer ?? "",
+      experienceShipping: experience.shipping ?? prod?.shipping ?? "",
+      experienceReturns: experience.returns ?? prod?.returns ?? "",
+      experienceRating: experience.rating != null ? String(experience.rating) : "",
+      experienceReviewCount:
+        experience.reviewCount != null
+          ? String(experience.reviewCount)
+          : prod?.reviewCount != null
+          ? String(prod.reviewCount)
+          : prod?.reviews != null
+          ? String(prod.reviews)
+          : "",
+      experienceIngredients:
+        Array.isArray(ingredientList) && ingredientList.length
+          ? ingredientList.map((item, index) => ({
+              name: item?.name ?? item?.ingredient ?? "",
+              why: item?.why ?? item?.detail ?? item?.description ?? "",
+              id: item.id ?? `${index}`,
+            }))
+          : [{ name: "", why: "" }],
+      experienceFaqs:
+        faqList.length && Array.isArray(faqList)
+          ? faqList.map((faq, index) => ({
+              q: faq.q ?? faq.question ?? "",
+              a: faq.a ?? faq.answer ?? "",
+              id: faq.id ?? `${index}`,
+            }))
+          : [{ q: "", a: "" }],
+      shades: Array.isArray(prod?.shades)
+        ? prod.shades.map((shade) => ({
+            id: shade.id ?? generateShadeKey(),
+            name: shade.name ?? "",
+            hexColor: shade.hexColor ?? "#a855f7",
+            sku: shade.sku ?? "",
+            price:
+              typeof shade.price === "string" || typeof shade.price === "number"
+                ? String(shade.price)
+                : "",
+            quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
+          }))
+        : [createEmptyShade()],
+    };
+  };
 
   useEffect(() => {
     if (isEdit && product) {
@@ -197,11 +328,21 @@ function ProductFormBase({
                 ? String(shade.price)
                 : "",
             quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
-          }))
+        }))
         : [];
       replaceShades(mappedShades.length ? mappedShades : [createEmptyShade()]);
+      replaceIngredients(
+        Array.isArray(formValues.experienceIngredients) && formValues.experienceIngredients.length
+          ? formValues.experienceIngredients
+          : [{ name: "", why: "" }]
+      );
+      replaceFaqs(
+        Array.isArray(formValues.experienceFaqs) && formValues.experienceFaqs.length
+          ? formValues.experienceFaqs
+          : [{ q: "", a: "" }]
+      );
     }
-  }, [isEdit, product, reset, replaceShades]);
+  }, [isEdit, product, reset, replaceFaqs, replaceIngredients, replaceShades]);
 
   const handleAddShade = () => appendShade(createEmptyShade());
   const handleRemoveShade = (index) => removeShade(index);
@@ -209,6 +350,22 @@ function ProductFormBase({
   const handleImageChange = (event) => {
     const files = Array.from(event.target.files ?? []).slice(0, 6);
     setImages(files);
+  };
+
+  const handleHeroImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setHeroUploading(true);
+    try {
+      const url = await uploadImageFile(file);
+      setValue("experienceHeroImage", url, { shouldDirty: true });
+      toast.success("Hero image uploaded");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to upload hero image");
+    } finally {
+      setHeroUploading(false);
+    }
   };
 
   const uploadImageFile = async (file) => {
@@ -265,6 +422,23 @@ function ProductFormBase({
     const num = parseFloat(value);
     return Number.isFinite(num) ? num : undefined;
   };
+  const parseList = (value) => {
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    if (typeof value !== "string") return [];
+    return value
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^[\s*-•]+/, "").trim())
+      .filter(Boolean);
+  };
+  const compactObject = (obj) => {
+    if (!obj || typeof obj !== "object") return undefined;
+    const entries = Object.entries(obj).filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0;
+      if (value && typeof value === "object") return Object.keys(value).length > 0;
+      return value !== undefined && value !== null && value !== "";
+    });
+    return entries.length ? Object.fromEntries(entries) : undefined;
+  };
 
   const handleRemoveExistingImage = (imageId) =>
     setExistingImages((prev) => prev.filter((img) => img.id !== imageId));
@@ -298,6 +472,70 @@ function ProductFormBase({
         }))
         .filter((s) => s.name && s.hexColor);
 
+      const hero = compactObject({
+        image: asOptionalString(values.experienceHeroImage),
+        objectPosition: asOptionalString(values.experienceHeroObjectPosition),
+        bg: asOptionalString(values.experienceHeroBg),
+        overlay: asOptionalString(values.experienceHeroOverlay),
+      });
+
+      const themeScenes = compactObject({
+        hero: asOptionalString(values.experienceSceneBgHero),
+        features: asOptionalString(values.experienceSceneBgFeatures),
+        ingredients: asOptionalString(values.experienceSceneBgIngredients),
+        video: asOptionalString(values.experienceSceneBgVideo),
+        shades: asOptionalString(values.experienceSceneBgShades),
+        reviews: asOptionalString(values.experienceSceneBgReviews),
+      });
+      const themeTone = compactObject({
+        hero: asOptionalString(values.experienceToneHero),
+        features: asOptionalString(values.experienceToneFeatures),
+        ingredients: asOptionalString(values.experienceToneIngredients),
+        video: asOptionalString(values.experienceToneVideo),
+        shades: asOptionalString(values.experienceToneShades),
+        reviews: asOptionalString(values.experienceToneReviews),
+      });
+      const theme = compactObject({
+        defaultBg: asOptionalString(values.experienceThemeDefaultBg),
+        bgScenes: themeScenes,
+        bgTone: themeTone,
+      });
+
+      const ingredientsPayload = (values.experienceIngredients || [])
+        .map((item) => ({
+          name: asOptionalString(item.name),
+          why: asOptionalString(item.why),
+        }))
+        .filter((item) => item.name || item.why);
+
+      const faqPayload = (values.experienceFaqs || [])
+        .map((item) => ({
+          q: asOptionalString(item.q),
+          a: asOptionalString(item.a),
+        }))
+        .filter((item) => item.q && item.a);
+
+      const experiencePayload = compactObject({
+        subtitle: asOptionalString(values.experienceSubtitle),
+        categoryPath: parseList(values.experienceCategoryPath),
+        longDescription: asOptionalString(values.experienceLongDescription),
+        videoUrl: asOptionalString(values.experienceVideoUrl),
+        hero,
+        theme,
+        gallery: parseList(values.experienceGallery),
+        badges: parseList(values.experienceBadges),
+        benefits: parseList(values.experienceBenefits),
+        howToUse: parseList(values.experienceHowToUse),
+        claims: parseList(values.experienceClaims),
+        disclaimer: asOptionalString(values.experienceDisclaimer),
+        shipping: asOptionalString(values.experienceShipping),
+        returns: asOptionalString(values.experienceReturns),
+        rating: asOptionalNumber(values.experienceRating),
+        reviewCount: asOptionalNumber(values.experienceReviewCount),
+        ingredientsHighlight: ingredientsPayload.length ? ingredientsPayload : undefined,
+        faqs: faqPayload.length ? faqPayload : undefined,
+      });
+
       const endpointUrl = isEdit
         ? `${API_BASE}/products/${productId ?? product?.id}`
         : `${API_BASE}/products`;
@@ -314,6 +552,7 @@ function ProductFormBase({
           collectionId: values.collectionId || undefined,
           images: payloadImages.length ? payloadImages : undefined,
           shades: shadePayload.length ? shadePayload : undefined,
+          experience: experiencePayload,
         }),
       });
 
@@ -606,6 +845,258 @@ function ProductFormBase({
                       </CardContent>
                     </Card>
                   </div>
+                </ScrollContainer>
+              </TabsContent>
+
+              {/* STORY */}
+              <TabsContent value="story" forceMount className="h-full">
+                <ScrollContainer className="space-y-6 pb-6">
+                  <Card className="border-none shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle>Product story</CardTitle>
+                      <CardDescription>Copy that powers the hero, subtitle, and long description.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-subtitle">Subtitle</Label>
+                          <Input id="experience-subtitle" placeholder="Feather-light. Full-pigment." autoComplete="off" {...register("experienceSubtitle")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-category">Category path</Label>
+                          <Textarea
+                            id="experience-category"
+                            rows={3}
+                            placeholder={"Makeup\nLips\nLipstick"}
+                            {...register("experienceCategoryPath")}
+                          />
+                          <p className="text-xs text-muted-foreground">One line per level; used for breadcrumbs and tone matching.</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="experience-long-description">Long description</Label>
+                        <Textarea
+                          id="experience-long-description"
+                          rows={5}
+                          placeholder="Share the sensory story, finish, and why it matters."
+                          {...register("experienceLongDescription")}
+                        />
+                        <p className="text-xs text-muted-foreground">This feeds the story section on the product page.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle>Visual theme & media</CardTitle>
+                      <CardDescription>Hero media, gallery, background gradients, and video.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-hero-image">Hero image</Label>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                id="experience-hero-image"
+                                placeholder="https://.../hero.jpg"
+                                {...register("experienceHeroImage")}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => heroImageInputRef.current?.click()}
+                                disabled={heroUploading}
+                              >
+                                {heroUploading ? "Uploading..." : "Upload"}
+                              </Button>
+                            </div>
+                            <input
+                              ref={heroImageInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleHeroImageChange}
+                            />
+                            <p className="text-xs text-muted-foreground">Upload to host and save the URL for the product hero.</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-hero-object">Image focal point</Label>
+                          <Input id="experience-hero-object" placeholder="68% 34%" {...register("experienceHeroObjectPosition")} />
+                          <p className="text-xs text-muted-foreground">Use CSS object-position to keep the product centered.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-hero-bg">Hero background</Label>
+                          <Input id="experience-hero-bg" placeholder="linear-gradient(...)" {...register("experienceHeroBg")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-hero-overlay">Hero overlay</Label>
+                          <Input id="experience-hero-overlay" placeholder="rgba(0,0,0,.05)" {...register("experienceHeroOverlay")} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="experience-gallery">Gallery (one URL per line)</Label>
+                        <Textarea id="experience-gallery" rows={3} placeholder="https://.../image-1.jpg" {...register("experienceGallery")} />
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-video">Product video URL</Label>
+                          <Input id="experience-video" placeholder="intro1.mp4 or https://..." {...register("experienceVideoUrl")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-theme-default">Default gradient / background</Label>
+                          <Input id="experience-theme-default" placeholder="radial-gradient(...)" {...register("experienceThemeDefaultBg")} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold">Section backgrounds</Label>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <Input placeholder="Hero bg" {...register("experienceSceneBgHero")} />
+                          <Input placeholder="Features bg" {...register("experienceSceneBgFeatures")} />
+                          <Input placeholder="Ingredients bg" {...register("experienceSceneBgIngredients")} />
+                          <Input placeholder="Video bg" {...register("experienceSceneBgVideo")} />
+                          <Input placeholder="Shades bg" {...register("experienceSceneBgShades")} />
+                          <Input placeholder="Reviews bg" {...register("experienceSceneBgReviews")} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Optional: helps replicate the gradients used on the product page sections.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle>Highlights & trust</CardTitle>
+                      <CardDescription>Badges, benefits, rituals, claims, and post-purchase info.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-badges">Badges (one per line)</Label>
+                          <Textarea id="experience-badges" rows={3} placeholder={"Vegan\nCruelty-Free\nDermat Tested"} {...register("experienceBadges")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-benefits">Benefits (one per line)</Label>
+                          <Textarea id="experience-benefits" rows={4} placeholder={"12-hour comfortable matte\nWeightless feel"} {...register("experienceBenefits")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-howto">How to use (one step per line)</Label>
+                          <Textarea id="experience-howto" rows={4} placeholder={"Exfoliate lips\nOutline with bullet tip\nBlot and reapply"} {...register("experienceHowToUse")} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-claims">Claims (one per line)</Label>
+                          <Textarea id="experience-claims" rows={4} placeholder={"93% agreed lips felt soft"} {...register("experienceClaims")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="experience-disclaimer">Disclaimer</Label>
+                          <Textarea id="experience-disclaimer" rows={2} placeholder="* Consumer study, n=60, after 1 week of use" {...register("experienceDisclaimer")} />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="experience-rating">Avg. rating</Label>
+                            <Input id="experience-rating" type="number" step="0.1" min="0" max="5" {...register("experienceRating")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="experience-reviews">Reviews count</Label>
+                            <Input id="experience-reviews" type="number" min="0" {...register("experienceReviewCount")} />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="experience-shipping">Shipping note</Label>
+                            <Textarea id="experience-shipping" rows={2} placeholder="Free shipping on orders above..." {...register("experienceShipping")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="experience-returns">Return policy</Label>
+                            <Textarea id="experience-returns" rows={2} placeholder="Easy 7-day returns..." {...register("experienceReturns")} />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle>Ingredients & FAQs</CardTitle>
+                      <CardDescription>Pair key actives with reasons-to-believe and answer top shopper questions.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold">Hero ingredients</Label>
+                          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => appendIngredient({ name: "", why: "" })}>
+                            Add ingredient
+                          </Button>
+                        </div>
+                        {ingredientFields.length ? (
+                          <div className="space-y-3">
+                            {ingredientFields.map((field, index) => (
+                              <div key={field.id ?? index} className="grid gap-3 rounded-2xl border border-border/60 bg-muted/10 p-3 md:grid-cols-[1.2fr,2fr,auto]">
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`experience-ingredient-${index}-name`}>Name</Label>
+                                  <Input id={`experience-ingredient-${index}-name`} placeholder="Squalane" {...register(`experienceIngredients.${index}.name`)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`experience-ingredient-${index}-why`}>Why it matters</Label>
+                                  <Input id={`experience-ingredient-${index}-why`} placeholder="locks in moisture" {...register(`experienceIngredients.${index}.why`)} />
+                                </div>
+                                <div className="flex items-end justify-end">
+                                  <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => removeIngredient(index)}>
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No hero ingredients yet.</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold">FAQs</Label>
+                          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => appendFaq({ q: "", a: "" })}>
+                            Add FAQ
+                          </Button>
+                        </div>
+                        {faqFields.length ? (
+                          <div className="space-y-3">
+                            {faqFields.map((field, index) => (
+                              <div key={field.id ?? index} className="space-y-2 rounded-2xl border border-border/60 bg-muted/10 p-3">
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`experience-faq-${index}-q`}>Question</Label>
+                                  <Input id={`experience-faq-${index}-q`} placeholder="Is it vegan?" {...register(`experienceFaqs.${index}.q`)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`experience-faq-${index}-a`}>Answer</Label>
+                                  <Textarea id={`experience-faq-${index}-a`} rows={2} placeholder="Yes, 100% vegan and cruelty-free." {...register(`experienceFaqs.${index}.a`)} />
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => removeFaq(index)}>
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Add common questions shoppers ask.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </ScrollContainer>
               </TabsContent>
 

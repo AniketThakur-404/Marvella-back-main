@@ -45,9 +45,9 @@ export default function VideoHero({
           if (!entry) return;
           if (entry.isIntersecting) {
             if (!v.paused && v.muted) return; // already playing
-            (async () => { try { await v.play(); } catch {} })();
+            (async () => { try { await v.play(); } catch { } })();
           } else {
-            try { v.pause(); } catch {}
+            try { v.pause(); } catch { }
           }
         },
         { threshold: 0.25 }
@@ -76,7 +76,7 @@ export default function VideoHero({
   };
 
   return (
-    <section className={`relative isolate w-full overflow-hidden rounded-2xl ${heightClass} ${className}`}>
+    <section className={`relative isolate w-full overflow-hidden ${heightClass} ${className}`}>
       <video
         ref={videoRef}
         className="absolute inset-0 block h-full w-full object-cover"

@@ -1,8 +1,15 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { useShop } from "@/context/ShopContext";
+
+/* ========================================================================
+   PREMIUM AR LIPSTICK ENGINE — UI FIX v11 (SPACING CORRECTED)
+   ======================================================================== */
 
 /* =============================== SHADES ================================== */
 const LIPSTICK_SHADES = [
-  { id: 0, code: null, name: "NA", color: "transparent" },
+  { id: 0, code: null, name: "Natural Finish", color: "transparent" },
   { id: 1, code: "601", name: "Scarlet Siren", color: "#B82229" },
   { id: 2, code: "602", name: "Rouge Eternelle", color: "#8D1D27" },
   { id: 3, code: "603", name: "Power Play", color: "#631820" },
@@ -28,8 +35,7 @@ const LIPSTICK_SHADES = [
   { id: 23, code: "623", name: "Runway Rani", color: "#D13864" },
 ];
 
-const PRODUCT_LINE_LABEL = "Marvella Luxe - Satin Lipstick";
-const SHADE_SCROLL_FRACTION = 0.55;
+const PRODUCT_LINE_LABEL = "Cevonne Luxe";
 
 /* ============================== LANDMARKS ================================= */
 const UPPER_LIP_OUTER = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
@@ -45,12 +51,12 @@ const LIP_LANDMARK_INDICES = new Set([
 ]);
 
 /* ============================ TUNABLE PARAMS ============================== */
-const BASE_SMOOTHING = 0.85;
-const MIN_LIP_SMOOTHING = 0.72;
-const MAX_LIP_SMOOTHING = 0.992;
-const POSITION_SNAP_THRESHOLD = 0.0025;
+const BASE_SMOOTHING = 0.94;
+const MIN_LIP_SMOOTHING = 0.88;
+const MAX_LIP_SMOOTHING = 0.99;
+const POSITION_SNAP_THRESHOLD = 0.001;
 
-const BASE_OPACITY = 0.84;
+const BASE_OPACITY = 0.78;
 const SHADOW_BOOST = 0.2;
 
 const DPR_DESKTOP = 2;
@@ -59,38 +65,42 @@ const MAX_BBOX_PAD = 12;
 
 const LIP_ON_FRAMES = 2;
 const LIP_OFF_FRAMES = 2;
+
 const MIN_LIP_AREA_PCT = 0.00012;
 const MAX_LIP_AREA_PCT = 0.12;
-const MAX_LIP_ASPECT = 28;
-const STICKY_HOLD_FRAMES = 16;
 
+const MAX_LIP_ASPECT = 60;
+
+const STICKY_HOLD_FRAMES = 16;
 const AREA_EMA_ALPHA = 0.18;
-const OCCL_AREA_DROP = 0.55;
-const OCCL_JITTER_THRESH = 0.05;
-const OCCL_Z_STD_THRESH = 0.02;
+const OCCL_AREA_DROP = 0.85;
+
+const OCCL_JITTER_THRESH = 0.2;
+const OCCL_Z_STD_THRESH = 0.15;
+
 const OCCL_MIN_FRAMES = 3;
-const HEAD_VEL_THRESH = 0.03;
+
 const HAND_OVERLAP_RATIO = 0.035;
 const HAND_BBOX_PAD_PX = 36;
 const ONLY_HIDE_ON_HAND = true;
 
-// NEW: limit how far lips are allowed to “jump” between frames
-// (fraction of frame diagonal). If exceeded, we keep previous lips.
-const MAX_LIP_JUMP_NORM = 0.12;
+const MAX_LIP_JUMP_NORM = 0.07;
+const MIN_LIP_MOVE_NORM = 0.0015;
 
-const MASK_EASE_ALPHA = 0.86;
+const HEAD_VEL_THRESH = 0.03;
+
+const MASK_EASE_ALPHA = 0.9;
 const FEATHER_EMA_ALPHA = 0.25;
 const FADE_IN_MS = 90;
 const FADE_OUT_MS = 80;
 
-const LIP_AREA_ON_MULT = 1.05;
-const LIP_AREA_OFF_MULT = 0.9;
-const HAND_OCCL_ON_FRAMES = 2;
+/* --- FULLNESS TUNING --- */
+const OUTER_SCALE = 1.03;
+const INNER_SCALE = 0.96;
+const UPPER_Y_BIAS_MAX = 0.15;
+const SOFT_EDGE_BOOST = 0.6;
 
-const OUTER_SCALE = 1.025;
-const INNER_SCALE = 0.985;
-const UPPER_Y_BIAS_MAX = 2.0;
-const SOFT_EDGE_BOOST = 0.4;
+const LIP_SAT_TRIM = 0.9;
 
 /* ========================== ROBUST MODEL LOADER =========================== */
 const FACE_MESH_URLS = [
@@ -101,6 +111,15 @@ const HANDS_URLS = [
   "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js",
   "https://unpkg.com/@mediapipe/hands@0.4/hands.js",
 ];
+
+function formatShadeLine(shade) {
+  const displayName = shade.id === 0 ? "Natural Finish" : shade.name;
+  const code =
+    shade.code && String(shade.code).trim().length
+      ? String(shade.code).trim()
+      : null;
+  return code ? `${code} - ${displayName}` : displayName;
+}
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -120,7 +139,7 @@ async function ensureOne(className, urls) {
     try {
       await loadScript(url);
       if (window[className]) return true;
-    } catch (_) {}
+    } catch (_) { }
   }
   return !!window[className];
 }
@@ -139,7 +158,12 @@ function hexToRgb(hex) {
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
-  return { r: isNaN(r) ? 200 : r, g: isNaN(g) ? 0 : g, b: isNaN(b) ? 0 : b, a: 255 };
+  return {
+    r: isNaN(r) ? 200 : r,
+    g: isNaN(g) ? 0 : g,
+    b: isNaN(b) ? 0 : b,
+    a: 255,
+  };
 }
 
 function rgbToHsl(r, g, b) {
@@ -242,17 +266,11 @@ function computeBBox(points) {
   return { x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
 }
 
-function rectFromPoints(points) {
-  const b = computeBBox(points);
-  return { x: b.x, y: b.y, w: b.w, h: b.h };
-}
+const rectFromPoints = (pts) => computeBBox(pts);
+const rectArea = (r) => Math.max(0, r.w) * Math.max(0, r.h);
 
 function rectPad(r, pad) {
   return { x: r.x - pad, y: r.y - pad, w: r.w + pad * 2, h: r.h + pad * 2 };
-}
-
-function rectArea(r) {
-  return Math.max(0, r.w) * Math.max(0, r.h);
 }
 
 function rectIntersectArea(a, b) {
@@ -294,23 +312,6 @@ function stddev(arr) {
   return Math.sqrt(v);
 }
 
-function lipsArePresent(outer_px, frameW, frameH) {
-  if (!outer_px || outer_px.length < 8) return false;
-  const bbox = computeBBox(outer_px);
-  if (bbox.w < 4 || bbox.h < 4) return false;
-  const bleed = 2;
-  const inFrame =
-    bbox.x >= -bleed &&
-    bbox.y >= -bleed &&
-    bbox.x + bbox.w <= frameW + bleed &&
-    bbox.y + bbox.h <= frameH + bleed;
-  if (!inFrame) return false;
-  const aspect = Math.max(bbox.w / bbox.h, bbox.h / bbox.w);
-  if (aspect > MAX_LIP_ASPECT) return false;
-  const pct = polygonArea(outer_px) / (frameW * frameH);
-  return pct >= MIN_LIP_AREA_PCT && pct <= MAX_LIP_AREA_PCT;
-}
-
 function lipsArePresentHysteresis(outer_px, frameW, frameH, wasVisible) {
   if (!outer_px || outer_px.length < 8) return false;
   const bbox = computeBBox(outer_px);
@@ -329,8 +330,8 @@ function lipsArePresentHysteresis(outer_px, frameW, frameH, wasVisible) {
 
   const pct = polygonArea(outer_px) / (frameW * frameH);
 
-  const minOn = MIN_LIP_AREA_PCT * LIP_AREA_ON_MULT;
-  const minOff = MIN_LIP_AREA_PCT * LIP_AREA_OFF_MULT;
+  const minOn = MIN_LIP_AREA_PCT * 1.05;
+  const minOff = MIN_LIP_AREA_PCT * 0.9;
   const maxOn = MAX_LIP_AREA_PCT * 0.95;
   const maxOff = MAX_LIP_AREA_PCT * 1.05;
 
@@ -360,6 +361,9 @@ function stabilizeWithMotion(prev, curr) {
   const scale = Math.max(0.9, Math.min(1.15, sCurr / sPrev));
   const n = curr.length;
   const out = new Array(n);
+
+  const alpha = 0.9;
+
   for (let i = 0; i < n; i++) {
     const pPrev = prev[i];
     const warpedPrev = {
@@ -367,8 +371,8 @@ function stabilizeWithMotion(prev, curr) {
       y: cCurr.y + (pPrev.y - cPrev.y) * scale,
     };
     out[i] = {
-      x: warpedPrev.x * 0.4 + curr[i].x * 0.6,
-      y: warpedPrev.y * 0.4 + curr[i].y * 0.6,
+      x: warpedPrev.x * (1 - alpha) + curr[i].x * alpha,
+      y: warpedPrev.y * (1 - alpha) + curr[i].y * alpha,
     };
   }
   return out;
@@ -437,7 +441,7 @@ async function ensureVideoReady(video) {
   video.muted = true;
   try {
     await video.play();
-  } catch (_) {}
+  } catch (_) { }
   if (video.readyState >= 2) return;
   await new Promise((resolve) => {
     const onCanPlay = () => {
@@ -475,57 +479,13 @@ async function tryOpenStream() {
   throw lastError || new Error("getUserMedia failed");
 }
 
-/* =========================== SMOKE TESTS (DEV) ============================ */
-const __testsRan = { v: false };
-function runSmokeTests() {
-  if (__testsRan.v) return;
-  __testsRan.v = true;
-  try {
-    const rr = hexToRgb("#ff0000");
-    console.assert(rr.r === 255 && rr.g === 0 && rr.b === 0, "hexToRgb failed");
-    const rr3 = hexToRgb("#0f0");
-    console.assert(rr3.g === 255, "hexToRgb 3-digit failed");
-    const rrt = hexToRgb("transparent");
-    console.assert(rrt.a === 0, "hexToRgb transparent failed");
-
-    const hsl = rgbToHsl(120, 60, 30);
-    const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
-    console.assert(
-      Math.abs(rgb.r - 120) < 10 &&
-        Math.abs(rgb.g - 60) < 10 &&
-        Math.abs(rgb.b - 30) < 10,
-      "HSL round trip approx failed"
-    );
-
-    const pts = [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 10, y: 10 },
-      { x: 0, y: 10 },
-    ];
-    console.assert(Math.abs(polygonArea(pts) - 100) < 1e-6, "polygonArea failed");
-    const bb = computeBBox(pts);
-    console.assert(
-      bb.w === 10 && bb.h === 10 && bb.x === 0 && bb.y === 0,
-      "computeBBox failed"
-    );
-    const inter = rectIntersectArea(
-      { x: 0, y: 0, w: 5, h: 5 },
-      { x: 3, y: 3, w: 5, h: 5 }
-    );
-    console.assert(inter === 4, "rectIntersectArea failed");
-  } catch (e) {
-    console.warn("Smoke tests error:", e);
-  }
-}
-
 /* =============================== COMPONENT ================================ */
+
 export default function VirtualTryOn() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const backCanvasRef = useRef(null);
 
-  // Offscreen tinted canvases for dual-shade mode
   const tintCanvasLeftRef = useRef(null);
   const tintCanvasRightRef = useRef(null);
 
@@ -545,18 +505,56 @@ export default function VirtualTryOn() {
   const smoothedLandmarksRef = useRef(null);
 
   const maskCanvasRef = useRef(null);
+
   const [error, setError] = useState("");
 
   const [started, setStarted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const wantsRunningRef = useRef(false);
 
-  // === Dual-shade state ===
-  const [leftShade, setLeftShade] = useState(LIPSTICK_SHADES[13]);
-  const [rightShade, setRightShade] = useState(LIPSTICK_SHADES[0]);
-  const [activeSide, setActiveSide] = useState("left");
+  /* ================= DUO-SHADE + COMPARE STATE ================== */
 
-  // Compact compare picker state
-  const [comparePickerOpen, setComparePickerOpen] = useState(false);
+  const [baseShade, setBaseShade] = useState(LIPSTICK_SHADES[1]);
+  const [leftShade, setLeftShade] = useState(LIPSTICK_SHADES[1]);
+  const [rightShade, setRightShade] = useState(LIPSTICK_SHADES[0]);
+
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [hasSecondShade, setHasSecondShade] = useState(false);
+
+  const compareEnabledRef = useRef(compareEnabled);
+  const hasSecondShadeRef = useRef(hasSecondShade);
+
+  const [compareRatio, setCompareRatio] = useState(0.5);
+  const compareRatioRef = useRef(compareRatio);
+
+  const [isPanelMinimized, setIsPanelMinimized] = useState(false);
+
+  useEffect(() => {
+    compareEnabledRef.current = compareEnabled;
+  }, [compareEnabled]);
+
+  useEffect(() => {
+    hasSecondShadeRef.current = hasSecondShade;
+  }, [hasSecondShade]);
+
+  useEffect(() => {
+    compareRatioRef.current = compareRatio;
+  }, [compareRatio]);
+
+  // When toggling compare, manage shades and layout
+  useEffect(() => {
+    if (compareEnabled) {
+      setLeftShade(baseShade);
+      setRightShade(LIPSTICK_SHADES[0]); // bare at start
+      setHasSecondShade(false);
+      setIsPanelMinimized(true);
+    } else {
+      setBaseShade(leftShade);
+      setHasSecondShade(false);
+      setIsPanelMinimized(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compareEnabled]);
 
   const leftColorRef = useRef(leftShade.color);
   const rightColorRef = useRef(rightShade.color);
@@ -567,14 +565,30 @@ export default function VirtualTryOn() {
     rightColorRef.current = rightShade.color;
   }, [rightShade]);
 
+  // Shade for UI centering in strip
+  const shadeForStrip = !compareEnabled
+    ? baseShade
+    : hasSecondShade
+      ? rightShade
+      : baseShade;
+
+  /* ================= OTHER UI STATE ================== */
+
   const [snapshot, setSnapshot] = useState(null);
   const [isMobileView, setIsMobileView] = useState(false);
+  const { cartItems, wishlist, addToCart, toggleWishlist, openDrawer } = useShop();
+  const activeShade = compareEnabled && hasSecondShade ? rightShade : baseShade;
+  const shadeKey =
+    activeShade && activeShade.id != null ? `ar-${activeShade.id}` : null;
+  const isWishlisted = useMemo(
+    () => (shadeKey ? wishlist.some((item) => item.key === shadeKey) : false),
+    [wishlist, shadeKey]
+  );
+  const activeShadeLabel = formatShadeLine(activeShade);
 
-  // Shade badge
-  const [showShadeBadge, setShowShadeBadge] = useState(false);
-  const badgeTimerRef = useRef(null);
   const shadeScrollerRef = useRef(null);
   const shadeButtonsRef = useRef({});
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const update = () => setIsMobileView(mq.matches);
@@ -588,57 +602,10 @@ export default function VirtualTryOn() {
     };
   }, []);
 
-  // Consent state
+  // Camera consent modal
   const [showConsent, setShowConsent] = useState(true);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentDeclined, setConsentDeclined] = useState(false);
-
-  // Split (dual) state
-  const [compareEnabled, setCompareEnabled] = useState(false);
-  const [compareRatio, setCompareRatio] = useState(0.5);
-  const compareEnabledRef = useRef(compareEnabled);
-  const compareRatioRef = useRef(compareRatio);
-  const compareDragHandlersRef = useRef({ move: null, up: null });
-  const comparePointerIdRef = useRef(null);
-
-  useEffect(() => {
-    compareEnabledRef.current = compareEnabled;
-  }, [compareEnabled]);
-  useEffect(() => {
-    compareRatioRef.current = compareRatio;
-  }, [compareRatio]);
-
-  const activeShade = activeSide === "left" ? leftShade : rightShade;
-
-  // Keep active shade centered
-  useEffect(() => {
-    const scroller = shadeScrollerRef.current;
-    const activeBtn = shadeButtonsRef.current[activeShade.id];
-    if (!scroller || !activeBtn) return;
-    const target =
-      activeBtn.offsetLeft -
-      scroller.clientWidth / 2 +
-      activeBtn.offsetWidth / 2;
-    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
-    const clamped = Math.min(Math.max(target, 0), Math.max(0, maxScroll));
-    scroller.scrollTo({ left: clamped, behavior: "smooth" });
-  }, [activeShade, started]);
-
-  const scrollShades = (direction) => {
-    const scroller = shadeScrollerRef.current;
-    if (!scroller) return;
-    const amount = scroller.clientWidth * SHADE_SCROLL_FRACTION || 0;
-    scroller.scrollBy({ left: direction * amount, behavior: "smooth" });
-  };
-
-  // Compare rail scroller
-  const compareScrollerRef = useRef(null);
-  const scrollCompareRail = (dir) => {
-    const el = compareScrollerRef.current;
-    if (!el) return;
-    const amt = Math.max(160, Math.round(el.clientWidth * 0.5));
-    el.scrollBy({ left: dir * amt, behavior: "smooth" });
-  };
 
   const handleConsentAccept = () => {
     setConsentAccepted(true);
@@ -657,92 +624,12 @@ export default function VirtualTryOn() {
     setConsentDeclined(false);
   };
 
-  // Clamp split
-  const clampCompare = (value) => Math.min(0.93, Math.max(0.07, value));
-
-  const updateComparePosition = (clientX) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0) return;
-    const ratio = clampCompare((clientX - rect.left) / rect.width);
-    compareRatioRef.current = ratio;
-    setCompareRatio(ratio);
-  };
-
-  const handleComparePointerDown = (event) => {
-    event.preventDefault();
-    const target = event.currentTarget;
-    if (!compareEnabledRef.current) {
-      compareEnabledRef.current = true;
-      setCompareEnabled(true);
-    }
-    updateComparePosition(event.clientX);
-    comparePointerIdRef.current = event.pointerId;
-    if (target?.setPointerCapture) {
-      try {
-        target.setPointerCapture(event.pointerId);
-      } catch (_) {}
-    }
-
-    const onMove = (e) => {
-      if (comparePointerIdRef.current !== e.pointerId) return;
-      if (e.cancelable) e.preventDefault();
-      updateComparePosition(e.clientX);
-    };
-    const onUp = (e) => {
-      if (comparePointerIdRef.current !== e.pointerId) return;
-      comparePointerIdRef.current = null;
-      if (target?.releasePointerCapture) {
-        try {
-          target.releasePointerCapture(e.pointerId);
-        } catch (_) {}
-      }
-      updateComparePosition(e.clientX);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      compareDragHandlersRef.current = { move: null, up: null };
-    };
-
-    compareDragHandlersRef.current = { move: onMove, up: onUp };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
-
-  const toggleCompare = () => {
-    setCompareEnabled((prev) => {
-      const next = !prev;
-      compareEnabledRef.current = next;
-      if (next) {
-        const target = 0.5;
-        compareRatioRef.current = target;
-        setCompareRatio(target);
-        setComparePickerOpen(false);
-      } else {
-        setComparePickerOpen(false);
-      }
-      return next;
-    });
-  };
-
-  const disableCompare = () => {
-    compareEnabledRef.current = false;
-    setCompareEnabled(false);
-    setComparePickerOpen(false);
-  };
-
-  useEffect(() => {
-    const { move, up } = compareDragHandlersRef.current;
-    if (move) window.removeEventListener("pointermove", move);
-    if (up) window.removeEventListener("pointerup", up);
-  }, []);
-
-  // Fade control
+  // Fade control for lipstick alpha
   const tintAlphaRef = useRef(0);
   const targetAlphaRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
 
-  // Occlusion state
+  // Occlusion / jitter state
   const goodStreakRef = useRef(0);
   const badStreakRef = useRef(0);
   const holdFramesRef = useRef(0);
@@ -752,16 +639,32 @@ export default function VirtualTryOn() {
   const occludedRef = useRef(false);
   const handFreeStreakRef = useRef(0);
 
-  // Anti-flicker
   const prevOuterCssRef = useRef(null);
   const prevInnerCssRef = useRef(null);
   const prevOuterPxRef = useRef(null);
   const prevInnerPxRef = useRef(null);
   const edgeFeatherEmaRef = useRef(null);
 
-  // Visibility + hand occlusion debounce
   const lipsVisibleRef = useRef(false);
   const handOverlapOnStreakRef = useRef(0);
+
+  /* ============ SHADE STRIP – KEEP ACTIVE IN CENTER ============ */
+
+  useEffect(() => {
+    if (isPanelMinimized) return;
+    const scroller = shadeScrollerRef.current;
+    const activeBtn = shadeButtonsRef.current[shadeForStrip.id];
+    if (!scroller || !activeBtn) return;
+    const target =
+      activeBtn.offsetLeft -
+      scroller.clientWidth / 2 +
+      activeBtn.offsetWidth / 2;
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+    const clamped = Math.min(Math.max(target, 0), Math.max(0, maxScroll));
+    scroller.scrollTo({ left: clamped, behavior: "smooth" });
+  }, [shadeForStrip, started, isPanelMinimized]);
+
+  /* ================= BASIC LAYOUT HOOKS ================= */
 
   useEffect(() => {
     const { style } = document.body;
@@ -788,8 +691,7 @@ export default function VirtualTryOn() {
     s2.crossOrigin = "anonymous";
     s2.async = true;
     s2.defer = true;
-    s2.onerror = () =>
-      setError("Failed to load Hands. Check network/HTTPS.");
+    s2.onerror = () => setError("Failed to load Hands. Check network/HTTPS.");
     document.head.appendChild(s2);
 
     return () => {
@@ -798,7 +700,7 @@ export default function VirtualTryOn() {
     };
   }, []);
 
-  // Poll init
+  // Poll init for FaceMesh + Hands
   useEffect(() => {
     let cancelled = false;
     const POLL_MS = 350;
@@ -826,31 +728,10 @@ export default function VirtualTryOn() {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Shade badge visibility logic
-  useEffect(() => {
-    if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
-    setShowShadeBadge(true);
-    badgeTimerRef.current = setTimeout(
-      () => setShowShadeBadge(false),
-      1600
-    );
-    return () => {
-      if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
-    };
-  }, [activeShade]);
-
-  useEffect(() => {
-    if (started) {
-      if (badgeTimerRef.current) clearTimeout(badgeTimerRef.current);
-      setShowShadeBadge(true);
-      badgeTimerRef.current = setTimeout(
-        () => setShowShadeBadge(false),
-        1600
-      );
-    }
-  }, [started]);
+  /* ================= CAMERA CONTROL ================= */
 
   function stopCamera() {
     if (afRef.current) {
@@ -860,7 +741,7 @@ export default function VirtualTryOn() {
       ) {
         try {
           videoRef.current.cancelVideoFrameCallback(afRef.current);
-        } catch {}
+        } catch (e) { }
       } else {
         cancelAnimationFrame(afRef.current);
       }
@@ -899,6 +780,7 @@ export default function VirtualTryOn() {
     compareEnabledRef.current = false;
     setCompareEnabled(false);
     setStarted(false);
+    setLoading(false);
   }
 
   function handleExit() {
@@ -906,7 +788,6 @@ export default function VirtualTryOn() {
     wantsRunningRef.current = false;
     setSnapshot(null);
     setError("");
-    compareEnabledRef.current = false;
     setCompareEnabled(false);
   }
 
@@ -918,13 +799,15 @@ export default function VirtualTryOn() {
       return;
     }
 
+    setLoading(true);
+
     if (!window.FaceMesh || !window.Hands) {
-      setError("Loading vision models…");
       const ok = await ensureModels();
       if (!ok) {
         setError(
-          "Couldn’t load vision models. Allow cdn.jsdelivr.net or unpkg.com (disable ad-block for this page) and ensure your CSP allows those domains."
+          "Couldn’t load vision models. Please allow cdn.jsdelivr.net or unpkg."
         );
+        setLoading(false);
         return;
       }
       setError("");
@@ -951,27 +834,18 @@ export default function VirtualTryOn() {
 
       setupCanvas();
       setStarted(true);
+
+      setTimeout(() => setLoading(false), 1200);
+
       startProcessing();
 
       window.addEventListener("resize", setupCanvas);
       window.addEventListener("orientationchange", setupCanvas);
     } catch (e) {
       console.error(e);
-      const msg = String(e?.name || e?.message || e);
-      if (/NotAllowedError|Permission/i.test(msg)) {
-        setError(
-          isiOS()
-            ? "Camera permission denied. Settings > Safari > Camera → Allow, then reload."
-            : "Camera permission denied. Allow camera permissions and reload."
-        );
-      } else if (/NotFoundError|DevicesNotFound/i.test(msg)) {
-        setError("No camera device found.");
-      } else if (/OverconstrainedError|Constraint/i.test(msg)) {
-        setError("Camera constraints not supported. Trying a simpler setup might help.");
-      } else {
-        setError("Camera access failed. Use HTTPS and a supported mobile browser.");
-      }
+      setError("Camera access failed. Please ensure permission is granted.");
       stopCamera();
+      setLoading(false);
     }
   }
 
@@ -999,7 +873,8 @@ export default function VirtualTryOn() {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    if (!backCanvasRef.current) backCanvasRef.current = document.createElement("canvas");
+    if (!backCanvasRef.current)
+      backCanvasRef.current = document.createElement("canvas");
     backCanvasRef.current.width = canvas.width;
     backCanvasRef.current.height = canvas.height;
 
@@ -1013,8 +888,11 @@ export default function VirtualTryOn() {
     tintCanvasRightRef.current.width = canvas.width;
     tintCanvasRightRef.current.height = canvas.height;
 
-    if (!maskCanvasRef.current) maskCanvasRef.current = document.createElement("canvas");
+    if (!maskCanvasRef.current)
+      maskCanvasRef.current = document.createElement("canvas");
   }
+
+  /* ===================== AR PROCESSING LOOP ===================== */
 
   function startProcessing() {
     const video = videoRef.current;
@@ -1026,7 +904,9 @@ export default function VirtualTryOn() {
     const tintLeft = tintCanvasLeftRef.current;
     const tintRight = tintCanvasRightRef.current;
     const tintLeftCtx = tintLeft.getContext("2d", { willReadFrequently: true });
-    const tintRightCtx = tintRight.getContext("2d", { willReadFrequently: true });
+    const tintRightCtx = tintRight.getContext("2d", {
+      willReadFrequently: true,
+    });
 
     const DPR = Math.min(
       window.devicePixelRatio || 1,
@@ -1083,15 +963,22 @@ export default function VirtualTryOn() {
       const thsl = rgbToHsl(tr, tg, tb);
       const data = frame.data;
       const mdata = mask.data;
+
       for (let i = 0; i < data.length; i += 4) {
         const ma = (mdata[i + 3] / 255) * tintAlphaRef.current;
         if (ma < 0.01) continue;
+
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
+
         const { l } = rgbToHsl(r, g, b);
+        const shadeL = l * 0.96 + 0.02;
+
         const a = clamp01(BASE_OPACITY + SHADOW_BOOST * (0.5 - l)) * ma;
-        const nrgb = hslToRgb(thsl.h, thsl.s, l);
+
+        const nrgb = hslToRgb(thsl.h, thsl.s * LIP_SAT_TRIM, shadeL);
+
         data[i] = Math.round(nrgb.r * a + r * (1 - a));
         data[i + 1] = Math.round(nrgb.g * a + g * (1 - a));
         data[i + 2] = Math.round(nrgb.b * a + b * (1 - a));
@@ -1104,7 +991,7 @@ export default function VirtualTryOn() {
       const dt = Math.max(0.001, (now - (lastTimeRef.current || now)) / 1000);
       lastTimeRef.current = now;
 
-      // Always run hands, freeze face during occlusion
+      // Run hands model
       if (
         video.readyState >= 2 &&
         !sendingHandsRef.current &&
@@ -1117,6 +1004,7 @@ export default function VirtualTryOn() {
           sendingHandsRef.current = false;
         }
       }
+      // Run face mesh unless occluded
       if (
         !occludedRef.current &&
         video.readyState >= 2 &&
@@ -1138,7 +1026,13 @@ export default function VirtualTryOn() {
       backCtx.setTransform(1, 0, 0, 1, 0, 0);
       backCtx.clearRect(0, 0, backCanvas.width, backCanvas.height);
       backCtx.setTransform(-DPR, 0, 0, DPR, backCanvas.width, 0);
-      if (video.readyState >= 2) backCtx.drawImage(video, 0, 0, w, h);
+
+      // PREMIUM CAMERA FILTER
+      if (video.readyState >= 2) {
+        backCtx.filter = "contrast(1.1) saturate(1.2) blur(0.5px)";
+        backCtx.drawImage(video, 0, 0, w, h);
+        backCtx.filter = "none";
+      }
 
       // Smooth landmarks
       const raw = latestResultsRef.current?.multiFaceLandmarks?.[0] || null;
@@ -1173,13 +1067,14 @@ export default function VirtualTryOn() {
         }
       }
 
-      const drawLm =
-        smoothedLandmarksRef.current || lastGoodLandmarksRef.current;
+      const drawLm = smoothedLandmarksRef.current || lastGoodLandmarksRef.current;
+
       if (drawLm) {
         let outerU = getLipPoints(drawLm, UPPER_LIP_OUTER, w, h);
         let outerL = getLipPoints(drawLm, LOWER_LIP_OUTER, w, h);
         let innerU = getLipPoints(drawLm, UPPER_LIP_INNER, w, h);
         let innerL = getLipPoints(drawLm, LOWER_LIP_INNER, w, h);
+
         let outerRing = smoothPolyline(
           [...outerU, ...outerL.slice().reverse()],
           0
@@ -1214,8 +1109,19 @@ export default function VirtualTryOn() {
             y: c.y + (p.y - c.y) * s,
           }));
         };
+
+        // --- DYNAMIC MOUTH FILL LOGIC ---
+        const innerBox = computeBBox(inner_px);
+        const outerBox = computeBBox(outer_px);
+        const openness = outerBox.h > 1 ? innerBox.h / outerBox.h : 0;
+
+        const dynamicInnerScale = Math.max(
+          0.72,
+          INNER_SCALE - openness * 0.45
+        );
+
         outer_px = scalePoly(outer_px, OUTER_SCALE);
-        inner_px = scalePoly(inner_px, INNER_SCALE);
+        inner_px = scalePoly(inner_px, dynamicInnerScale);
 
         outer_px = stabilizeWithMotion(prevOuterPxRef.current, outer_px);
         inner_px = stabilizeWithMotion(prevInnerPxRef.current, inner_px);
@@ -1224,19 +1130,10 @@ export default function VirtualTryOn() {
 
         outer_px = smoothTemporal(prevOuterPxRef.current, outer_px, MASK_EASE_ALPHA);
         inner_px = smoothTemporal(prevInnerPxRef.current, inner_px, MASK_EASE_ALPHA);
-        outerRing = smoothTemporal(
-          prevOuterCssRef.current,
-          outerRing,
-          MASK_EASE_ALPHA
-        );
-        innerRing = smoothTemporal(
-          prevInnerCssRef.current,
-          innerRing,
-          MASK_EASE_ALPHA
-        );
+        outerRing = smoothTemporal(prevOuterCssRef.current, outerRing, MASK_EASE_ALPHA);
+        innerRing = smoothTemporal(prevInnerCssRef.current, innerRing, MASK_EASE_ALPHA);
 
-        // ==== TRUST GATE: prevent lipstick from jumping off the mouth ====
-        // Only apply when previous frame had visible lips.
+        // TRUST GATE: kill jumps & micro jitter
         if (
           lipsVisibleRef.current &&
           prevOuterPxRef.current &&
@@ -1249,17 +1146,19 @@ export default function VirtualTryOn() {
             Math.hypot(currC.x - prevC.x, currC.y - prevC.y) / diag;
 
           if (centroidShiftNorm > MAX_LIP_JUMP_NORM) {
-            // Frame looks like a tracking glitch; keep last stable lips.
+            outer_px = prevOuterPxRef.current.slice();
+            inner_px = (prevInnerPxRef.current || inner_px).slice();
+            outerRing = (prevOuterCssRef.current || outerRing).slice();
+            innerRing = (prevInnerCssRef.current || innerRing).slice();
+          } else if (centroidShiftNorm < MIN_LIP_MOVE_NORM) {
             outer_px = prevOuterPxRef.current.slice();
             inner_px = (prevInnerPxRef.current || inner_px).slice();
             outerRing = (prevOuterCssRef.current || outerRing).slice();
             innerRing = (prevInnerCssRef.current || innerRing).slice();
           }
         }
-        // ==================================================================
 
-        const hasRaw =
-          !!latestResultsRef.current?.multiFaceLandmarks?.[0];
+        const hasRaw = !!latestResultsRef.current?.multiFaceLandmarks?.[0];
 
         const lipsVisibleNow =
           hasRaw &&
@@ -1321,7 +1220,7 @@ export default function VirtualTryOn() {
         if (ONLY_HIDE_ON_HAND) {
           if (handOverlapNow) {
             handOverlapOnStreakRef.current = Math.min(
-              HAND_OCCL_ON_FRAMES,
+              2,
               handOverlapOnStreakRef.current + 1
             );
           } else {
@@ -1329,7 +1228,7 @@ export default function VirtualTryOn() {
           }
           HARD_OCCLUSION =
             handOverlapNow ||
-            handOverlapOnStreakRef.current >= HAND_OCCL_ON_FRAMES;
+            handOverlapOnStreakRef.current >= 2;
           occlStreakRef.current = 0;
         } else {
           const occludedNow = hasRaw && (handOverlapNow || softOcclusionNow);
@@ -1343,10 +1242,11 @@ export default function VirtualTryOn() {
         else handFreeStreakRef.current = 0;
         if (handFreeStreakRef.current >= 2) occludedRef.current = false;
 
-        const anyColorSelected = compareEnabledRef.current
-          ? leftColorRef.current !== "transparent" ||
-            rightColorRef.current !== "transparent"
-          : leftColorRef.current !== "transparent";
+        const anyColorSelected =
+          leftColorRef.current !== "transparent" ||
+          (compareEnabledRef.current &&
+            hasSecondShadeRef.current &&
+            rightColorRef.current !== "transparent");
 
         const shouldShow =
           (lipsVisibleNow && !HARD_OCCLUSION) || holdFramesRef.current > 0;
@@ -1384,6 +1284,12 @@ export default function VirtualTryOn() {
           prevInnerCssRef.current = innerRing.slice();
         }
 
+        const validLipMesh =
+          outer_px &&
+          inner_px &&
+          outer_px.length >= 8 &&
+          inner_px.length >= 8;
+
         // Build left/right tinted canvases
         tintLeftCtx.setTransform(1, 0, 0, 1, 0, 0);
         tintRightCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1393,32 +1299,39 @@ export default function VirtualTryOn() {
         tintRightCtx.drawImage(backCanvas, 0, 0);
 
         const alpha = tintAlphaRef.current;
+        const shouldPaintShade =
+          validLipMesh && lipsVisibleNow && !HARD_OCCLUSION && anyColorSelected;
         const willDraw =
-          alpha > 0.02 || targetAlphaRef.current > 0.02;
-        if (willDraw && !HARD_OCCLUSION) {
-          const drawOuter = outer_px || prevOuterPxRef.current;
-          const drawInner =
-            inner_px || prevInnerPxRef.current || inner_px;
+          shouldPaintShade &&
+          (alpha > 0.02 || targetAlphaRef.current > 0.02);
+
+        if (willDraw && shouldPaintShade) {
+          const drawOuter = outer_px;
+          const drawInner = inner_px;
           if (drawOuter && drawInner) {
             const lc = leftColorRef.current;
             const rc = rightColorRef.current;
-            if (lc !== "transparent")
+
+            if (lc !== "transparent") {
               tintOnCtx(tintLeftCtx, lc, drawOuter, drawInner, w, h);
-            if (compareEnabledRef.current) {
-              const rightShadeColor =
-                rc !== "transparent" ? rc : lc;
-              if (rightShadeColor !== "transparent")
-                tintOnCtx(
-                  tintRightCtx,
-                  rightShadeColor,
-                  drawOuter,
-                  drawInner,
-                  w,
-                  h
-                );
-            } else {
-              if (lc !== "transparent")
-                tintOnCtx(tintRightCtx, lc, drawOuter, drawInner, w, h);
+            }
+
+            let rightTint = null;
+            if (!compareEnabledRef.current) {
+              rightTint = lc !== "transparent" ? lc : null;
+            } else if (hasSecondShadeRef.current && rc !== "transparent") {
+              rightTint = rc;
+            }
+
+            if (rightTint) {
+              tintOnCtx(
+                tintRightCtx,
+                rightTint,
+                drawOuter,
+                drawInner,
+                w,
+                h
+              );
             }
           }
         } else if (HARD_OCCLUSION) {
@@ -1434,12 +1347,12 @@ export default function VirtualTryOn() {
           (targetAlphaRef.current - tintAlphaRef.current) * k;
       }
 
-      // Present
+      // Present on main canvas
       frontCtx.setTransform(1, 0, 0, 1, 0, 0);
       frontCtx.clearRect(0, 0, frontCanvas.width, frontCanvas.height);
 
       if (compareEnabledRef.current) {
-        const splitRatio = clampCompare(compareRatioRef.current);
+        const splitRatio = Math.min(0.93, Math.max(0.07, compareRatioRef.current));
         const splitPx = frontCanvas.width * splitRatio;
 
         frontCtx.save();
@@ -1482,6 +1395,8 @@ export default function VirtualTryOn() {
     step();
   }
 
+  /* ============== GEOMETRY HELPERS USING LANDMARKS ============== */
+
   function getLipPoints(landmarks, indices, w, h) {
     return indices.map((i) => ({
       x: landmarks[i].x * w,
@@ -1523,6 +1438,8 @@ export default function VirtualTryOn() {
     return boxes;
   }
 
+  /* ================= SNAPSHOT ================= */
+
   function takeSnapshot() {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -1539,33 +1456,77 @@ export default function VirtualTryOn() {
     }
   }
 
-  useEffect(() => {
-    runSmokeTests();
-  }, []);
+  const handleShadeSelect = (shade) => {
+    if (!compareEnabledRef.current) {
+      setBaseShade(shade);
+      setLeftShade(shade);
+      return;
+    }
 
-  useEffect(() => {
-    document.body.classList.add("ar-no-scroll");
-    return () => document.body.classList.remove("ar-no-scroll");
-  }, []);
-
-  const formatShadeLine = (shade) => {
-    const displayName = shade.id === 0 ? "Natural Finish" : shade.name;
-    const code =
-      shade.code && String(shade.code).trim().length
-        ? String(shade.code).trim()
-        : null;
-    return code ? `${code} - ${displayName}` : displayName;
+    setRightShade(shade);
+    setHasSecondShade(shade.id !== 0);
   };
 
-  const leftShadeLine = formatShadeLine(leftShade);
-  const rightShadeLine = formatShadeLine(rightShade);
-  const comparePreviewShade =
-    rightShade?.id === 0 || !rightShade ? leftShade : rightShade;
+  const toggleCompare = () => {
+    setCompareEnabled((prev) => {
+      const next = !prev;
+      compareEnabledRef.current = next;
+      setCompareRatio(0.5);
+      compareRatioRef.current = 0.5;
+      return next;
+    });
+  };
+
+  const handleAddAnother = () => {
+    if (!compareEnabledRef.current) {
+      toggleCompare();
+      return;
+    }
+    setIsPanelMinimized(false);
+  };
+
+  const handleAddToCart = () => {
+    if (!shadeKey) return;
+    const added = addToCart({
+      key: shadeKey,
+      name: activeShadeLabel,
+      color: activeShade.color,
+    });
+    if (added) {
+      toast.success(`${activeShadeLabel} added to cart`);
+      openDrawer("cart");
+    } else {
+      toast(`${activeShadeLabel} is already in your cart`);
+    }
+  };
+
+  const handleToggleWishlist = () => {
+    if (!shadeKey) return;
+    const action = toggleWishlist({
+      key: shadeKey,
+      name: activeShadeLabel,
+      color: activeShade.color,
+    });
+    if (action === "added") {
+      toast.success(`${activeShadeLabel} saved to wishlist`);
+      openDrawer("wishlist");
+    } else if (action === "removed") {
+      toast(`${activeShadeLabel} removed from wishlist`);
+    }
+  };
+
+  /* ================= RENDER ================= */
+
+  const displayLeftLine = formatShadeLine(leftShade);
+  const displayRightLine = hasSecondShade
+    ? formatShadeLine(rightShade)
+    : "Add another";
 
   return (
     <div
-      className="fixed inset-0 w-screen h-screen bg-black text-white font-sans overflow-hidden touch-manipulation select-none"
-      style={{ minHeight: "100dvh" }}
+      className="fixed inset-0 w-screen bg-black text-white font-sans overflow-hidden touch-manipulation select-none"
+      // Change: 100dvh prevents URL bar scrolling issues on mobile
+      style={{ height: "100dvh" }}
     >
       <div className="relative w-full h-full bg-black">
         <video ref={videoRef} className="hidden" playsInline muted autoPlay />
@@ -1574,22 +1535,35 @@ export default function VirtualTryOn() {
           className="absolute inset-0 w-full h-full object-cover"
         />
 
-        {consentAccepted && !showConsent && (
-          <div className="absolute top-6 right-3 sm:top-9 sm:right-6 z-40 pointer-events-none">
+        {/* LOADING OVERLAY */}
+        {loading && (
+          <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center animate-fade-in">
+            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+            <div className="text-sm uppercase tracking-widest text-white/80">
+              Loading Experience
+            </div>
+          </div>
+        )}
+
+        {/* TOP HEADER (Safe area padded) */}
+        {consentAccepted && !showConsent && !snapshot && !loading && (
+          <div className="absolute top-0 left-0 right-0 z-40 flex justify-between items-start p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
+            <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/90 drop-shadow-md pointer-events-auto">
+              Cevonne AR
+            </div>
+
             <button
               type="button"
               onClick={handleExit}
-              className="pointer-events-auto relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/70 text-white flex items-center justify-center border border-white/25 shadow-[0_8px_20px_rgba(0,0,0,0.35)] hover:bg-black/85 transition-colors"
-              aria-label="Close virtual try-on"
+              className="pointer-events-auto w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Close"
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-5 h-5"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeWidth="1.5"
               >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -1598,877 +1572,405 @@ export default function VirtualTryOn() {
           </div>
         )}
 
-        {started && !snapshot && consentAccepted && (
-          <div className="absolute top-8 sm:top-10 left-1/2 -translate-x-1/2 text-center z-30 pointer-events-none">
-            <div className="text-xs sm:text-sm tracking-[0.3em] uppercase text-white/70">
-              Marvelle Beauté
-            </div>
-            <div className="text-base sm:text-lg text-white font-semibold tracking-[0.12em]">
-              Virtual Try-On
-            </div>
-          </div>
-        )}
-
+        {/* CONSENT MODAL */}
         {showConsent && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-            <div className="relative w-full max-w-2xl bg-white text-black rounded-[32px] shadow-[0_25px_60px_rgba(0,0,0,0.35)] border border-black/5 p-6 sm:p-10">
-              <button
-                type="button"
-                onClick={handleConsentDecline}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-black/60 hover:text-black focus:outline-none"
-                aria-label="Decline consent"
-              >
-                <svg
-                  className="w-5 h-5 sm:w-6 sm:h-6"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <div className="space-y-6 sm:space-y-8">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-serif text-black mb-3">
-                    Consent Form
-                  </h2>
-                  <p className="text-sm sm:text-base leading-relaxed text-black/80">
-                    To enjoy the Marvella Virtual Try-On (VTO) experience, we
-                    need access to your camera. By clicking{" "}
-                    <span className="font-semibold">“I want to proceed”</span>,
-                    you allow us to process live images of your face to preview
-                    lipstick shades in augmented reality. To use this feature
-                    you should be at least 18 years old. Your video feed stays
-                    on your device, is processed in real time for shade
-                    rendering, and is never stored or shared with third parties.
-                    The imagery will not be reused for unrelated purposes.
-                    Review our{" "}
-                    <a
-                      href="#privacy-policy"
-                      className="underline decoration-black/50 underline-offset-4 hover:text-black"
-                    >
-                      Privacy Policy
-                    </a>{" "}
-                    for details about data use and your rights.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-                  <button
-                    type="button"
-                    onClick={handleConsentDecline}
-                    className="px-5 py-2.5 rounded-full border border-black/25 text-black/70 hover:text-black hover:border-black transition-colors text-sm sm:text-base"
-                  >
-                    I decline
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleConsentAccept}
-                    className="px-5 py-2.5 rounded-full bg-black text-white font-semibold hover:bg-black/85 transition-colors text-sm sm:text-base shadow-[0_10px_25px_rgba(0,0,0,0.25)]"
-                  >
-                    I want to proceed
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {consentDeclined && !showConsent && !consentAccepted && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 backdrop-blur-sm px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-white/15 bg-black/85 text-white p-6 sm:p-8 text-center space-y-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-              <h3 className="text-xl sm:text-2xl font-semibold">
-                Consent Required
-              </h3>
-              <p className="text-sm sm:text-base text-white/80">
-                We need your permission to access the camera before launching
-                the Virtual Try-On experience. You can review the consent
-                details again or close this window to exit.
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 animate-fade-in">
+            <div className="relative w-full max-w-md bg-[#1a1a1a] text-white rounded-2xl border border-white/10 p-8 shadow-2xl">
+              <h2 className="text-2xl font-light tracking-wide mb-2">
+                Virtual Try-On
+              </h2>
+              <p className="text-white/60 text-sm mb-8 leading-relaxed">
+                Allow camera access to see how these shades look on you in
+                real-time.
               </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <div className="flex flex-col gap-3">
                 <button
-                  type="button"
-                  onClick={reopenConsent}
-                  className="px-5 py-2.5 rounded-full bg-white text-black font-semibold hover:bg:white/90 transition-colors text-sm sm:text-base"
+                  onClick={handleConsentAccept}
+                  className="w-full py-3.5 rounded-full bg-white text-black font-semibold hover:bg-gray-200 transition"
                 >
-                  Review consent
+                  Enable Camera
+                </button>
+                <button
+                  onClick={handleConsentDecline}
+                  className="w-full py-3.5 rounded-full border border-white/10 hover:bg-white/5 transition font-medium text-white/70"
+                >
+                  Not Now
                 </button>
               </div>
             </div>
           </div>
         )}
 
+        {/* SNAPSHOT PREVIEW */}
         {snapshot && (
-          <div className="absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center p-4">
-            <img
-              src={snapshot}
-              alt="Lipstick Try-On Snapshot"
-              className="max-w-full max-h-[75%] rounded-lg shadow-2xl border-4 border-white"
-            />
-            <div className="mt-8 flex gap-4">
-              <button
-                onClick={() => setSnapshot(null)}
-                className="px-5 py-2 sm:px-6 bg-gray-700 text-white rounded-full font-semibold hover:bg-gray-600 transition-colors"
-              >
-                Back
-              </button>
-              <a
-                href={snapshot}
-                download="lipstick-try-on.png"
-                className="px-5 py-2 sm:px-6 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-colors"
-              >
-                Download
-              </a>
+          <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div className="relative max-w-md w-full">
+              <img
+                src={snapshot}
+                alt="Look"
+                className="w-full rounded-xl shadow-2xl border border-white/10"
+              />
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => setSnapshot(null)}
+                  className="flex-1 py-3 rounded-full bg-zinc-800 text-white font-medium border border-zinc-700"
+                >
+                  Retake
+                </button>
+                <a
+                  href={snapshot}
+                  download="marvella-look.png"
+                  className="flex-1 py-3 rounded-full bg-white text-black font-bold text-center flex items-center justify-center"
+                >
+                  Save
+                </a>
+              </div>
             </div>
           </div>
         )}
 
-        {!started && consentAccepted && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-20 p-4">
+        {/* START BUTTON */}
+        {!started && consentAccepted && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30 backdrop-blur-sm">
             <button
               onClick={startCamera}
-              className="px-6 py-3 text-base sm:px-8 sm:py-4 sm:text-lg bg-white text-black rounded-full font-semibold transform hover:scale-105 active:scale-100 transition-transform"
+              className="px-8 py-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-lg font-medium hover:bg-white/20 transition shadow-lg"
             >
-              Start Virtual Try-On
+              Start Camera
             </button>
           </div>
         )}
 
+        {/* ERROR TOAST */}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-4 z-20">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 sm:px-6 sm:py-4 rounded-xl text-center w-11/12 max-w-md">
-              <strong className="font-bold">Error: </strong>
-              <span className="block sm:inline">{error}</span>
-            </div>
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full text-center backdrop-blur-md text-sm shadow-lg w-max max-w-[90%]">
+            {error}
           </div>
         )}
 
-        {/* Shade badge (single mode) */}
-        {started && !snapshot && !compareEnabled && (
-          <div
-            aria-live="polite"
-            className={`pointer-events-none absolute left-1/2 -translate-x-1/2 top-20 sm:top-24 z-20 transition-all duration-300 ease-out ${
-              showShadeBadge
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 -translate-y-2"
-            }`}
-          >
-            <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full bg-black/55 backdrop-blur-md shadow-lg border border-white/10 flex items-center gap-2.5">
-              {activeShade.color !== "transparent" ? (
-                <span
-                  className="inline-block w-4 h-4 sm:w-5 sm:h-5 rounded-full ring-2 ring-white/30"
-                  style={{ backgroundColor: activeShade.color }}
-                  aria-hidden="true"
-                />
-              ) : (
-                <span className="relative inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5">
-                  <span className="absolute inset-0 rounded-full bg-neutral-500/70" />
-                  <span className="absolute inset-0 rotate-45 w-[2px] bg-red-400 rounded" />
-                </span>
-              )}
-
-              <div className="text-white text-sm sm:text-base font-semibold tracking-wide whitespace-nowrap max-w-[12rem] sm:max-w-[16rem] truncate">
-                {formatShadeLine(activeShade)}
-              </div>
-
-              {activeShade.color !== "transparent" && (
-                <div className="text-white/70 text-[10px] sm:text-xs font-mono">
-                  {activeShade.color.toUpperCase()}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Split overlay: slider + dual tray */}
+        {/* SPLIT GUIDE + FACE LABELS */}
         {compareEnabled && started && !snapshot && (
           <>
-            {/* Center drag handle */}
-            <div className="absolute inset-0 z-30 pointer-events-none">
+            <div className="absolute inset-0 z-20 pointer-events-none">
               <div
-                className="absolute inset-0"
-                aria-hidden="true"
-              >
-                <div
-                  className="absolute top-0 bottom-0 w-px"
-                  style={{
-                    left: `${compareRatio * 100}%`,
-                    transform: "translateX(-0.5px)",
-                  }}
-                >
-                  <div className="h-full w-px bg-gradient-to-b from-white/10 via-white/80 to-white/10 opacity-90" />
-                  <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2">
-                    <div className="h-14 w-px bg-white/25 blur-[2px]" />
-                  </div>
-                </div>
-              </div>
-
+                className="absolute top-0 bottom-0 w-[1px] bg-white/60 shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                style={{ left: `50%` }}
+              />
               <div
-                className="pointer-events-none absolute top-1/2 flex h-12 w-12 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-white/60 bg-black/70 text-white shadow-[0_14px_30px_rgba(0,0,0,0.55)] backdrop-blur-md"
-                style={{ left: `${compareRatio * 100}%` }}
-                aria-hidden="true"
-              >
-                <span className="absolute inset-0 rounded-full border border-white/15 blur-sm" aria-hidden="true" />
-                <span className="absolute inset-1 rounded-full border border-white/40" aria-hidden="true" />
-                <svg
-                  className="w-5 h-5 relative drop-shadow"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M12 3.5 13.8 9l5.7.4-4.5 3.1 1.5 5.5L12 14.6 7.5 18l1.5-5.5-4.5-3.1 5.7-.4Z" />
-                </svg>
-              </div>
-
-              <button
-                type="button"
-                onClick={disableCompare}
-                className="pointer-events-auto absolute bottom-[14%] right-5 flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-black/75 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] active:scale-95 transition-transform"
-                aria-label="Close dual shades"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-10 h-10 bg-white/20 backdrop-blur-md border border-white/50 rounded-full shadow-xl flex items-center justify-center text-white"
+                style={{ left: `50%` }}
               >
                 <svg
-                  className="w-5 h-5"
+                  className="w-4 h-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                 >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <path d="M15 18l-6-6 6-6" />
                 </svg>
-              </button>
+                <svg
+                  className="w-4 h-4 rotate-180"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </div>
             </div>
 
-            {/* Floating shade labels near split */}
-            {!comparePickerOpen && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-[18%] px-5 flex items-end justify-between text-white drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
-                <div className="flex items-center gap-3">
-                  <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/35">
-                    <span
-                      className="h-9 w-9 rounded-full"
-                      style={{
-                        backgroundColor:
-                          leftShade.color === "transparent"
-                            ? "rgba(110,110,110,0.65)"
-                            : leftShade.color,
-                      }}
-                    />
-                    <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                  </span>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">Left</span>
-                    <span className="text-[15px] font-semibold">{leftShadeLine}</span>
-                  </div>
-                </div>
-
-                <div className="pointer-events-auto flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSide("right");
-                      setComparePickerOpen(true);
-                    }}
-                    className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/75 bg-black/40 text-white shadow-[0_12px_28px_rgba(0,0,0,0.55)] backdrop-blur"
-                    aria-label={rightShade?.id === 0 ? "Add another shade" : "Switch right shade"}
-                  >
-                    {rightShade?.id === 0 ? (
-                      <span className="text-2xl leading-none">+</span>
-                    ) : (
-                      <>
-                        <span
-                          className="h-9 w-9 rounded-full"
-                          style={{
-                            backgroundColor:
-                              rightShade?.color === "transparent"
-                                ? "rgba(110,110,110,0.65)"
-                                : rightShade?.color,
-                          }}
-                          aria-hidden="true"
-                        />
-                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                      </>
-                    )}
-                  </button>
-                  <div className="flex flex-col leading-tight text-right">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
-                      {rightShade?.id === 0 ? "" : "Right"}
-                    </span>
-                    <span className="text-[15px] font-semibold">
-                      {rightShade?.id === 0 ? "Add another" : rightShadeLine}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div
-              className={`absolute inset-x-0 bottom-0 z-40 ${
-                comparePickerOpen ? "pointer-events-auto" : "pointer-events-none hidden"
-              }`}
-              style={{
-                paddingBottom:
-                  "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)",
-              }}
-            >
-              <div className="pointer-events-auto w-full px-3 pb-3 flex justify-center">
+            <div className="absolute inset-0 z-20 pointer-events-none">
+              {/* Left shade chip - Top-Relative positioning from v9 preserved */}
+              <div className="absolute top-[40%] left-[25%] -translate-x-1/2 flex flex-col items-center gap-2 animate-fade-in pointer-events-none">
                 <div
-                  className={`relative w-full ${isMobileView ? "max-w-[540px]" : "max-w-3xl"} rounded-t-[30px] bg-[#0c0c0c]/92 border border-white/12 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] px-4 pt-5 pb-5 flex flex-col gap-3`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setComparePickerOpen(false)}
-                    className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white"
-                    aria-label="Collapse shade tray"
-                  >
-                    <svg
-                      className="w-4 h-4 transition-transform"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/80 bg-black/35">
-                        <span
-                          className="h-9 w-9 rounded-full"
-                          style={{
-                            backgroundColor:
-                              leftShade.color === "transparent"
-                                ? "#6f6f6f"
-                                : leftShade.color,
-                          }}
-                          aria-hidden="true"
-                        />
-                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                      </span>
-                      <div className="leading-tight">
-                        <div className="text-[10px] uppercase tracking-[0.32em] text-white/70">
-                          Compare to
-                        </div>
-                        <div className="text-sm font-semibold text-white">
-                          {leftShadeLine}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white/75 tracking-wide">
-                        VS
-                      </span>
-                      <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/70 bg-black/35">
-                        {comparePreviewShade?.id === 0 ? (
-                          <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                        ) : (
-                          <span
-                            className="h-9 w-9 rounded-full"
-                            style={{
-                              backgroundColor:
-                                comparePreviewShade?.color === "transparent"
-                                  ? "#6f6f6f"
-                                  : comparePreviewShade?.color,
-                            }}
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span className="absolute inset-[3px] rounded-full border border-white/45" aria-hidden="true" />
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => scrollCompareRail(-1)}
-                      className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
-                      aria-label="Scroll shades left"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="15 18 9 12 15 6" />
-                      </svg>
-                    </button>
-
-                    <div
-                      ref={compareScrollerRef}
-                      className="hide-scrollbar flex-1 flex items-center gap-3 overflow-x-auto py-1 px-2"
-                      style={{ touchAction: "pan-x" }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRightShade(LIPSTICK_SHADES[0]);
-                          setComparePickerOpen(true);
-                        }}
-                        className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150"
-                        style={{
-                          background: "rgba(110,110,110,0.45)",
-                          boxShadow:
-                            rightShade?.id === 0
-                              ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
-                              : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                        }}
-                        title="None"
-                      >
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                        </span>
-                      </button>
-                      <div className="flex items-center gap-3">
-                        {LIPSTICK_SHADES.filter((s) => s.id !== 0).map(
-                          (shade) => {
-                            const isSelected = rightShade?.id === shade.id;
-                            const shadeColor =
-                              shade.color === "transparent"
-                                ? "rgba(110,110,110,0.65)"
-                                : shade.color;
-                            const shadeBackground =
-                              shade.color === "transparent"
-                                ? shadeColor
-                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%), ${shadeColor}`;
-                            return (
-                              <button
-                                key={shade.id}
-                                type="button"
-                                onClick={() => {
-                                  setRightShade(shade);
-                                  setComparePickerOpen(false);
-                                }}
-                                className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden transition-transform duration-150 hover:scale-105"
-                                style={{
-                                  background: shadeBackground,
-                                  boxShadow: isSelected
-                                    ? "0 0 0 2.3px rgba(255,255,255,0.94), 0 0 0 5.5px rgba(0,0,0,0.45)"
-                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                                }}
-                                title={shade.name}
-                              />
-                            );
-                          }
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => scrollCompareRail(1)}
-                      className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white"
-                      aria-label="Scroll shades right"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="text-center text-[11px] uppercase tracking-[0.3em] text-white/80">
-                    Select a shade to compare
-                  </div>
-
-                  <div className="text-center text-white leading-tight space-y-0.5">
-                    <div className="text-[11px] font-medium text-white/70 tracking-[0.2em] uppercase">
-                      {PRODUCT_LINE_LABEL}
-                    </div>
-                  </div>
-                </div>
+                  className="w-14 h-14 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white"
+                  style={{ backgroundColor: leftShade.color }}
+                />
+                <span className="bg-black/40 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-full border border-white/10 shadow-lg whitespace-nowrap">
+                  {leftShade.name || "Shade 1"}
+                </span>
               </div>
+
+              {/* Right – Add another */}
+              <button
+                type="button"
+                onClick={handleAddAnother}
+                className="absolute top-[40%] right-[25%] translate-x-1/2 flex flex-col items-center gap-2 animate-fade-in pointer-events-auto"
+              >
+                <div
+                  className="w-14 h-14 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white"
+                  style={{
+                    backgroundColor: hasSecondShade
+                      ? rightShade.color
+                      : "rgba(255,255,255,0.1)",
+                  }}
+                />
+                <span className="bg-black/40 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-full border border-white/10 shadow-lg whitespace-nowrap">
+                  {hasSecondShade ? rightShade.name : "Add another"}
+                </span>
+              </button>
             </div>
           </>
         )}
 
-        {/* Bottom controls & single-shade rail */}
-        {started && !snapshot && !compareEnabled && (
-          <>
-            {/* Desktop: bottom overlay */}
-            {!isMobileView && (
-              <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none bg-gradient-to-t from-black via-black/85 to-transparent pt-6 pb-8">
-                <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-col items-center gap-3 px-6">
-                  <div className="relative w-full flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() => scrollShades(-1)}
-                      className="absolute -left-1 h-10 w-10 rounded-full bg-black/65 border border-white/25 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] hover:border-white/40 transition"
-                      aria-label="Previous shade"
-                    >
-                      <svg
-                        className="mx-auto w-4.5 h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="15 18 9 12 15 6" />
-                      </svg>
-                    </button>
+        {/* BOTTOM COMMAND CENTER */}
+        {started && !snapshot && (
+          <div className="absolute bottom-0 left-0 right-0 z-30 flex flex-col justify-end">
+            {/* GRADIENT BACKGROUND */}
+            <div className="absolute bottom-0 left-0 right-0 h-[45vh] bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
 
-                    <div className="w-full max-w-4xl rounded-[28px] bg-black/78 backdrop-blur-lg border border-white/10 shadow-[0_24px_70px_rgba(0,0,0,0.55)] px-8 py-5 flex flex-col items-center gap-3">
-                      <div className="w-full">
-                        <div
-                          ref={shadeScrollerRef}
-                          className="hide-scrollbar flex items-center justify-start gap-3.5 overflow-x-auto scroll-smooth py-1.5 px-2"
-                          style={{ touchAction: "pan-x" }}
-                        >
-                          {LIPSTICK_SHADES.map((shade) => {
-                            const isSelected =
-                              (activeSide === "left"
-                                ? leftShade.id
-                                : rightShade.id) === shade.id;
-                            const shadeColor =
-                              shade.color === "transparent"
-                                ? "rgba(110,110,110,0.65)"
-                                : shade.color;
-                            const shadeBackground =
-                              shade.color === "transparent"
-                                ? shadeColor
-                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%), ${shadeColor}`;
-                            return (
-                              <button
-                                key={shade.id}
-                                type="button"
-                                ref={(el) => {
-                                  if (el) {
-                                    shadeButtonsRef.current[shade.id] = el;
-                                  } else {
-                                    delete shadeButtonsRef.current[shade.id];
-                                  }
-                                }}
-                                onClick={() => {
-                                  if (activeSide === "left") setLeftShade(shade);
-                                  else setRightShade(shade);
-                                }}
-                                className={`relative flex-shrink-0 w-11 h-11 rounded-full overflow-hidden transition-transform duration-200 ease-out ${
-                                  isSelected ? "scale-110" : "hover:scale-105"
-                                }`}
-                                style={{
-                                  background: shadeBackground,
-                                  boxShadow: isSelected
-                                    ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
-                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                                }}
-                                title={shade.name}
-                              >
-                                {shade.id === 0 && (
-                                  <span className="absolute inset-0 flex items-center justify-center">
-                                    <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                                  </span>
-                                )}
-                                {isSelected && (
-                                  <span className="absolute inset-[6px] rounded-full border border-white/80 opacity-90" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="text-center text-white leading-tight space-y-1">
-                        <div className="text-[11px] font-semibold text-white/75 tracking-[0.2em] uppercase">
-                          {PRODUCT_LINE_LABEL}
-                        </div>
-                        <div className="text-lg font-semibold text-white">
-                          {leftShadeLine}
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => scrollShades(1)}
-                      className="absolute -right-1 h-10 w-10 rounded-full bg-black/65 border border-white/25 text-white shadow-[0_12px_26px_rgba(0,0,0,0.55)] hover:border-white/40 transition"
-                      aria-label="Next shade"
-                    >
-                      <svg
-                        className="mx-auto w-4.5 h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="w-full flex items-center justify-center gap-6 text-white text-opacity-90 pointer-events-auto pt-2">
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="m9 12 2 2 4-4"></path>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={toggleCompare}
-                      className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
-                        compareEnabled
-                          ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
-                          : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
+            {/* Changed: pb-safe for iPhone home bar */}
+            <div className="relative w-full pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+              {/* Minimise / expand tray */}
+              <div className="absolute top-0 right-4 z-20 pointer-events-auto">
+                <button
+                  onClick={() => setIsPanelMinimized((v) => !v)}
+                  className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-all border border-white/5 shadow-lg backdrop-blur-md"
+                >
+                  <svg
+                    className={`w-5 h-5 text-white/90 transition-transform duration-300 ${isPanelMinimized ? "rotate-180" : ""
                       }`}
-                      aria-pressed={compareEnabled}
-                      title={
-                        compareEnabled ? "Disable dual shades" : "Dual shades split"
-                      }
-                    >
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="9" cy="12" r="5" />
-                        <circle cx="15" cy="12" r="5" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={takeSnapshot}
-                      className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
-                    >
-                      <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
-                    </button>
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-                      </svg>
-                    </button>
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <circle cx="19" cy="12" r="1"></circle>
-                        <circle cx="5" cy="12" r="1"></circle>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
               </div>
-            )}
 
-            {/* Mobile: bottom rail */}
-            {isMobileView && (
+              {/* HEADER / LABELS */}
+              <div className="flex flex-col items-center justify-center px-6 mb-2 relative z-10">
+                {!compareEnabled && (
+                  <>
+                    <div className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em] mb-1">
+                      {PRODUCT_LINE_LABEL}
+                    </div>
+                    <div className="text-xl font-light text-white tracking-wide truncate max-w-[240px] md:max-w-[300px] text-center drop-shadow-md">
+                      {formatShadeLine(baseShade)}
+                    </div>
+                  </>
+                )}
+
+                {compareEnabled && !isPanelMinimized && (
+                  <>
+                    <div className="text-[10px] md:text-xs font-medium text-white/70 uppercase tracking-[0.18em] mb-1">
+                      Select a shade to compare
+                    </div>
+                    <div className="text-[10px] text-white/60 text-center">
+                      {hasSecondShade
+                        ? formatShadeLine(rightShade)
+                        : "Tap a shade below"}
+                    </div>
+                  </>
+                )}
+
+                {compareEnabled && isPanelMinimized && hasSecondShade && (
+                  <div className="flex items-center gap-2 text-[11px] text-white/70">
+                    <span className="truncate max-w-[120px]">{displayLeftLine}</span>
+                    <span className="opacity-40">·</span>
+                    <span className="truncate max-w-[120px]">{displayRightLine}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* SHADE STRIP */}
               <div
-                className="absolute inset-x-0 bottom-0 pt-4 pb-7 bg-gradient-to-t from-black via-black/75 to-transparent z-10"
-                style={{
-                  paddingBottom:
-                    "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)",
-                }}
+                className={`overflow-hidden transition-all duration-500 ease-in-out relative z-10 ${isPanelMinimized
+                  ? "max-h-0 opacity-0"
+                  : "max-h-[260px] opacity-100"
+                  }`}
               >
-                <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 px-4">
-                  <div className="w-full max-w-xl flex flex-col items-center gap-3">
-                    <div className="w-full rounded-[24px] bg-black/85 border border-white/10 backdrop-blur-md shadow-[0_-14px_40px_rgba(0,0,0,0.55)] px-4 py-3">
-                      <div className="text-center text-[11px] uppercase tracking-[0.26em] text-white/75">
-                        Choose your shade
-                      </div>
-                      <div className="mt-2">
-                        <div
-                          ref={shadeScrollerRef}
-                          className="hide-scrollbar flex items-center justify-start gap-3.5 overflow-x-auto scroll-smooth py-1.5 px-2"
-                          style={{ touchAction: "pan-x" }}
+                <div className="relative w-full h-20 mb-1">
+                  <div
+                    ref={shadeScrollerRef}
+                    className="absolute inset-0 flex items-center gap-3 px-[50vw] overflow-x-auto hide-scrollbar snap-x snap-center py-2"
+                    style={{ scrollBehavior: "smooth" }}
+                  >
+                    {LIPSTICK_SHADES.map((shade) => {
+                      const isActive =
+                        (!compareEnabled && baseShade.id === shade.id) ||
+                        (compareEnabled &&
+                          hasSecondShade &&
+                          rightShade.id === shade.id);
+
+                      return (
+                        <button
+                          key={shade.id}
+                          ref={(el) =>
+                            (shadeButtonsRef.current[shade.id] = el)
+                          }
+                          onClick={() => handleShadeSelect(shade)}
+                          className={`relative flex-shrink-0 rounded-full transition-all duration-300 snap-center group ${isActive
+                            ? "w-12 h-12 md:w-14 md:h-14 ring-2 ring-white ring-offset-2 ring-offset-transparent shadow-xl scale-110"
+                            : "w-10 h-10 md:w-12 md:h-12 opacity-60 hover:opacity-100 hover:scale-105"
+                            }`}
                         >
-                          {LIPSTICK_SHADES.map((shade) => {
-                            const isSelected =
-                              (activeSide === "left"
-                                ? leftShade.id
-                                : rightShade.id) === shade.id;
-                            const shadeColor =
-                              shade.color === "transparent"
-                                ? "rgba(110,110,110,0.65)"
-                                : shade.color;
-                            const shadeBackground =
-                              shade.color === "transparent"
-                                ? shadeColor
-                                : `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%), ${shadeColor}`;
-                            return (
-                              <button
-                                key={shade.id}
-                                type="button"
-                                ref={(el) => {
-                                  if (el) {
-                                    shadeButtonsRef.current[shade.id] = el;
-                                  } else {
-                                    delete shadeButtonsRef.current[shade.id];
-                                  }
-                                }}
-                                onClick={() => {
-                                  if (activeSide === "left") setLeftShade(shade);
-                                  else setRightShade(shade);
-                                }}
-                                className={`relative flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden transition-transform duration-200 ease-out ${
-                                  isSelected ? "scale-105" : "hover:scale-105"
-                                }`}
-                                style={{
-                                  background: shadeBackground,
-                                  boxShadow: isSelected
-                                    ? "0 0 0 3px rgba(255,255,255,0.98), 0 0 0 7px rgba(0,0,0,0.45)"
-                                    : "0 0 0 1.5px rgba(255,255,255,0.26)",
-                                }}
-                                title={shade.name}
-                              >
-                                {shade.id === 0 && (
-                                  <span className="absolute inset-0 flex items-center justify-center">
-                                    <span className="h-[3px] w-4 rotate-45 bg-white/85 rounded-full" />
-                                  </span>
-                                )}
-                                {isSelected && (
-                                  <span className="absolute inset-[5px] sm:inset-[6px] rounded-full border border-white/80 opacity-90" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="mt-2 text-center text-white leading-tight">
-                        <div className="text-[11px] sm:text-xs font-medium text-white/70 tracking-[0.16em] uppercase">
-                          {PRODUCT_LINE_LABEL}
-                        </div>
-                        <div className="mt-0.5 text-base sm:text-lg font-semibold text-white">
-                          {leftShadeLine}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom buttons */}
-                  <div className="w-full max-w-lg flex items-center justify-center gap-6 text-white text-opacity-90">
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="m9 12 2 2 4-4"></path>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={toggleCompare}
-                      className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors border ${
-                        compareEnabled
-                          ? "bg-white text-black shadow-[0_12px_26px_rgba(0,0,0,0.45)] border-black/25"
-                          : "border-white/25 bg-black/55 text-white hover:border-white/45 shadow-[0_10px_22px_rgba(0,0,0,0.55)]"
-                      }`}
-                      aria-pressed={compareEnabled}
-                      title={
-                        compareEnabled
-                          ? "Disable dual shades"
-                          : "Dual shades split"
-                      }
-                    >
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="9" cy="12" r="5" />
-                        <circle cx="15" cy="12" r="5" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={takeSnapshot}
-                      className="relative flex h-[3.25rem] w-[3.25rem] md:h-[3.6rem] md:w-[3.6rem] items-center justify-center rounded-full bg-white/98 shadow-[0_18px_34px_rgba(0,0,0,0.45)] active:scale-95 transition-transform"
-                    >
-                      <div className="h-[85%] w-[85%] rounded-full border-[4px] border-black/85"></div>
-                    </button>
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-                      </svg>
-                    </button>
-                    <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-[0_10px_22px_rgba(0,0,0,0.55)] hover:border-white/45 transition-colors">
-                      <svg
-                        className="w-4 h-4 md:w-4.5 md:h-4.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <circle cx="19" cy="12" r="1"></circle>
-                        <circle cx="5" cy="12" r="1"></circle>
-                      </svg>
-                    </button>
+                          <div
+                            className="w-full h-full rounded-full border border-white/10 shadow-inner"
+                            style={{
+                              backgroundColor:
+                                shade.color === "transparent"
+                                  ? "#333"
+                                  : shade.color,
+                            }}
+                          />
+                          {shade.id === 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-4 h-[1px] bg-white/50 -rotate-45" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            )}
-          </>
+
+              {(cartItems.length > 0 || wishlist.length > 0) && (
+                <div className="relative z-10 mb-2 flex flex-wrap justify-center gap-3 px-6 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/70">
+                  {cartItems.length > 0 && (
+                    <Badge className="rounded-full bg-white/10 px-3 py-1 text-[9px] uppercase tracking-[0.3em]">
+                      Cart {cartItems.length} item
+                      {cartItems.length === 1 ? "" : "s"}
+                    </Badge>
+                  )}
+                  {wishlist.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-white/30 px-3 py-1 text-[9px] uppercase tracking-[0.3em] text-white/80"
+                    >
+                      Saved {wishlist.length} look
+                      {wishlist.length === 1 ? "" : "s"}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* BOTTOM ACTIONS (FIXED SPACING) */}
+              <div className="pb-4 px-4 pt-2 w-full relative z-10">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center max-w-[520px] mx-auto w-full gap-4">
+                  {/* LEFT: COMPARE (Centered in grid col) */}
+                  <div className="flex justify-center items-center md:pl-14 sm:pl-24">
+                    <button
+                      onClick={toggleCompare}
+                      className="flex flex-col items-center gap-1.5"
+                    >
+                      <div
+                        className={`w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30 flex items-center justify-center transition-all backdrop-blur-sm ${compareEnabled
+                          ? "bg-white text-black"
+                          : "bg-black/25 text-white hover:bg-white/10 hover:border-white/50"
+                          }`}
+                      >
+                        <svg
+                          className="w-4 h-4 md:w-5 md:h-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        >
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M12 3V21" />
+                          <path
+                            d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3V21Z"
+                            fill="currentColor"
+                            fillOpacity="0.35"
+                          />
+                        </svg>
+                      </div>
+
+                      <span className="min-h-[14px] flex items-center justify-center text-[8px] md:text-[9px] font-semibold tracking-[0.2em] uppercase text-white/70 leading-tight text-center">
+                        COMPARE
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* CENTER: SNAPSHOT */}
+                  <div className="flex justify-center mb-4">
+                    <button
+                      onClick={takeSnapshot}
+                      className="relative group"
+                    >
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-white flex items-center justify-center transition-all group-active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.15)] backdrop-blur-sm">
+                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white transition-all group-hover:scale-95 shadow-inner" />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* RIGHT: CART + WISHLIST (Centered in grid col) */}
+                  <div className="flex justify-center items-center">
+                    <div className="flex items-start gap-3 md:gap-6">
+                      {/* ADD TO CART */}
+                      <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        aria-label={`Add ${activeShadeLabel} to cart`}
+                        className="flex flex-col items-center gap-1.5"
+                      >
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30 bg-black/25 backdrop-blur-sm flex items-center justify-center text-white hover:border-white/60 hover:bg-white/10 transition-colors">
+                          <svg
+                            className="w-4 h-4 md:w-5 md:h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <path d="M16 10a4 4 0 0 1-8 0" />
+                          </svg>
+                        </div>
+
+                        <span className="min-h-[14px] flex items-center justify-center text-[8px] md:text-[9px] font-semibold tracking-[0.2em] uppercase text-white/70 leading-tight text-center">
+                          CART
+                        </span>
+                      </button>
+
+                      {/* WISHLIST */}
+                      <button
+                        type="button"
+                        onClick={handleToggleWishlist}
+                        aria-label={`${isWishlisted ? "Remove" : "Save"
+                          } ${activeShadeLabel} ${isWishlisted ? "from" : "to"} wishlist`}
+                        aria-pressed={isWishlisted}
+                        className="flex flex-col items-center gap-1.5"
+                      >
+                        <div
+                          className={`w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30 bg-black/25 backdrop-blur-sm flex items-center justify-center hover:border-white/60 hover:bg-white/10 transition-colors text-white ${isWishlisted
+                            ? "text-rose-400 border-rose-400/60 hover:border-rose-400/80 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                            : ""
+                            }`}
+                        >
+                          <svg
+                            className="w-4 h-4 md:w-5 md:h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                          </svg>
+                        </div>
+
+                        <span className="min-h-[14px] flex items-center justify-center text-[8px] md:text-[9px] font-semibold tracking-[0.2em] uppercase text-white/70 leading-tight text-center">
+                          SAVE
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
