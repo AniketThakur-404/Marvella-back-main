@@ -1356,7 +1356,7 @@ function StickyProductBar({ product, activeShade, activeShadeLabel, onAddToCart,
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-full duration-300">
+    <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-full duration-300">
       <div className="w-full px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-4">
         {/* Left: Product Info (hidden on mobile) */}
         <div className="hidden md:flex items-center gap-3">
