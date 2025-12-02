@@ -9,7 +9,7 @@ const HeroSection = ({
   ctaHref = "#",
 }) => {
   return (
-    <section className="relative isolate w-full overflow-hidden bg-black">
+    <section className="relative isolate w-full overflow-hidden bg-black px-0">
       {/* Background image */}
       <div className="relative h-[60svh] min-h-[360px] w-full sm:h-[68svh] sm:min-h-[420px] md:h-[100vh]">
         <img
