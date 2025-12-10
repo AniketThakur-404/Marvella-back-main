@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useEffect } from "react";
 
 import { AppSidebar } from "./app-sidebar";
 import { ProductForm } from "./components/ProductDialog";
@@ -17,14 +18,19 @@ export default function ProductCreate() {
   const { collections, refresh, loading } = useDashboardData(true, request);
   const collectionOptions = Array.isArray(collections) ? collections : [];
 
+  useEffect(() => {
+    document.body.classList.add("dashboard-form-lock");
+    return () => document.body.classList.remove("dashboard-form-lock");
+  }, []);
+
   const handleCancel = () => navigate("/dashboard");
   const handleSuccess = () => navigate("/dashboard/products");
 
   return (
     <SidebarProvider>
-      <div className="flex h-svh w-full">
+      <div className="flex h-svh w-full overflow-hidden">
         <AppSidebar />
-        <SidebarInset className="flex min-w-0 flex-1 flex-col bg-[#f5f7fb]">
+        <SidebarInset className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden bg-[#f5f7fb]">
           <header className="flex flex-col gap-4 border-b border-border bg-white/95 px-4 py-5 shadow-sm md:flex-row md:items-center md:justify-between lg:px-6">
             <div className="flex items-center gap-3 text-primary">
               <SidebarTrigger className="md:hidden rounded-full border border-primary/20 bg-primary/10 p-2 text-primary shadow-sm" />
@@ -55,7 +61,7 @@ export default function ProductCreate() {
             </div>
           </header>
 
-          <main className="flex flex-1 flex-col overflow-y-auto px-4 pb-10 pt-6 md:px-6">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-0 pt-6 md:px-6">
             <div className="flex flex-col gap-6">
               <ProductForm
                 collections={collectionOptions}

@@ -22,6 +22,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { useSidebar } from "@/hooks/use-sidebar";
 
 import { formatCurrency } from "./utils";
+import { OrdersPanel } from "./components/OrdersPanel";
 
 const defaultRequest = (url, options) => fetch(url, options);
 
@@ -60,7 +61,7 @@ export default function Dashboard() {
     );
   };
 
-  const { products, collections, shades, inventory, lowInventory, stats, loading, refresh } =
+  const { products, collections, shades, inventory, lowInventory, orders, stats, loading, refresh } =
     useDashboardData(true, request);
 
   const goToNewProduct = () => navigate("/dashboard/products/new");
@@ -110,7 +111,7 @@ export default function Dashboard() {
     {
       label: "Low stock",
       value: stats?.lowStockCount ?? 0,
-      helper: `${shades?.length ?? 0} shades tracked`,
+      helper: `${stats?.shadeCount ?? 0} shades tracked`,
       icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
       accent: "from-[#f97316] to-[#facc15]",
     },
@@ -329,6 +330,8 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 </div>
+
+                <OrdersPanel orders={orders} loading={loading} refresh={refresh} />
               </div>
             </main>
           </div>

@@ -3,7 +3,22 @@ const { z } = require('zod');
 const { getPrisma } = require('../db/prismaClient');
 
 const imageSchema = z.object({
-  url: z.string().url('Image URL must be valid'),
+  url: z
+    .string()
+    .min(1, 'Image URL is required')
+    .refine(
+      (val) => {
+        try {
+          // Allow absolute URLs and asset-like relative paths
+          // eslint-disable-next-line no-new
+          new URL(val);
+          return true;
+        } catch (err) {
+          return /^[\w/@.:-]+$/i.test(val);
+        }
+      },
+      { message: 'Image URL must be a valid URL or asset path' }
+    ),
   alt: z.string().optional(),
 });
 
@@ -14,6 +29,9 @@ const shadeSchema = z.object({
     .regex(/^#?[0-9a-fA-F]{6}$/, 'Hex must be a 6 character hex code')
     .transform((value) => (value.startsWith('#') ? value : `#${value}`)),
   sku: z.string().optional(),
+  arAssetUrl: z.string().trim().optional().nullable(),
+  arPreviewUrl: z.string().trim().optional().nullable(),
+  arCode: z.string().trim().optional().nullable(),
   price: z.number().min(0).optional(),
   quantity: z.number().int().min(0).optional(),
 });
@@ -43,7 +61,17 @@ const experienceSchema = z
     gallery: z.array(z.string()).optional(),
     rating: z.number().optional(),
     reviewCount: z.number().optional(),
-    badges: z.array(z.string()).optional(),
+    badges: z
+      .array(
+        z.union([
+          z.string(),
+          z.object({
+            type: z.string().optional(),
+            label: z.string().optional(),
+          }),
+        ])
+      )
+      .optional(),
     benefits: z.array(z.string()).optional(),
     ingredientsHighlight: z
       .array(
@@ -66,6 +94,28 @@ const experienceSchema = z
       .optional(),
     shipping: z.string().optional(),
     returns: z.string().optional(),
+    pricing: z
+      .object({
+        price: z.number().optional(),
+        originalValue: z.number().optional(),
+        currency: z.string().optional(),
+        discountText: z.string().optional(),
+      })
+      .optional(),
+    reviewsList: z
+      .array(
+        z.object({
+          author: z.string().optional(),
+          rating: z.number().optional(),
+          title: z.string().optional(),
+          comment: z.string().optional(),
+          date: z.string().optional(),
+        })
+      )
+      .optional(),
+    videoTitle: z.string().optional(),
+    videoDescription: z.string().optional(),
+    ingredientsTitle: z.string().optional(),
   })
   .partial()
   .passthrough();
@@ -73,14 +123,234 @@ const experienceSchema = z
 const productSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
+  brand: z.string().optional(),
+  productType: z.string().optional(),
+  tags: z.any().optional(),
+  badges: z.any().optional(),
   description: z.string().optional(),
   finish: z.string().optional(),
   basePrice: z.number().min(0),
   collectionId: z.string().nullish(),
   images: z.array(imageSchema).optional(),
   shades: z.array(shadeSchema).optional(),
+  media: z.any().optional(),
+  pricing: z
+    .object({
+      price: z.number().optional(),
+      originalValue: z.number().optional(),
+      currency: z.string().optional(),
+      discountText: z.string().optional(),
+    })
+    .optional(),
+  ingredients: z.any().optional(),
+  size: z.any().optional(),
+  setContents: z.any().optional(),
   experience: experienceSchema.optional(),
 });
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === '') return undefined;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+};
+
+const slugify = (value) => {
+  if (!value) return undefined;
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+const collectGalleryUrls = (raw = {}) => {
+  const galleryItems = Array.isArray(raw.gallery) ? raw.gallery : [];
+  const experienceGallery = Array.isArray(raw.experience?.gallery) ? raw.experience.gallery : [];
+  const mediaGallery = Array.isArray(raw.media?.gallery)
+    ? raw.media.gallery.map((g) => g?.url || g?.id || g?.src)
+    : [];
+  const heroImage = raw.media?.heroImage || raw.hero?.image;
+
+  return [
+    heroImage,
+    ...galleryItems,
+    ...experienceGallery,
+    ...mediaGallery,
+  ]
+    .map((item) => {
+      if (!item) return '';
+      if (typeof item === 'string') return item;
+      if (typeof item === 'object') return item.url || item.id || '';
+      return '';
+    })
+    .filter(Boolean)
+    .filter((val, idx, arr) => arr.indexOf(val) === idx);
+};
+
+const normalizeImagesInput = (raw = {}) => {
+  if (Array.isArray(raw.images) && raw.images.length) {
+    return raw.images
+      .map((image) => {
+        if (!image) return null;
+        if (typeof image === 'string') return { url: image };
+        return {
+          url: image.url ?? image.src ?? image.id ?? '',
+          alt: image.alt,
+        };
+      })
+      .filter((img) => img?.url);
+  }
+
+  const gallery = collectGalleryUrls(raw);
+  return gallery.length ? gallery.map((url) => ({ url })) : undefined;
+};
+
+const normalizeShadesInput = (shades) => {
+  if (!Array.isArray(shades) || !shades.length) return undefined;
+  return shades.map((shade, index) => ({
+    name: shade?.name ?? shade?.label ?? shade?.title ?? shade?.id ?? `Shade ${index + 1}`,
+    hexColor: shade?.hexColor ?? shade?.hex ?? shade?.color ?? '#000000',
+    sku: shade?.sku ?? shade?.key ?? shade?.id,
+    arAssetUrl: shade?.arAssetUrl ?? shade?.arAsset ?? shade?.assetUrl ?? null,
+    arPreviewUrl: shade?.arPreviewUrl ?? shade?.previewUrl ?? null,
+    arCode: shade?.arCode ?? shade?.code ?? null,
+    price: toNumber(shade?.price ?? shade?.basePrice ?? shade?.mrp),
+    quantity: shade?.quantity ?? shade?.qty ?? shade?.stock,
+  }));
+};
+
+const normalizeExperiencePayload = (raw = {}) => {
+  const experience = { ...(raw.experience ?? {}) };
+  const setIfDefined = (key, value) => {
+    if (value !== undefined && value !== null) {
+      experience[key] = value;
+    }
+  };
+
+  setIfDefined('title', raw.title);
+  setIfDefined('subtitle', raw.subtitle ?? raw.description?.headline);
+  setIfDefined('categoryPath', raw.categoryPath);
+  setIfDefined('longDescription', raw.longDescription ?? raw.description?.body);
+  setIfDefined('videoUrl', raw.videoUrl);
+  setIfDefined('hero', raw.hero);
+  setIfDefined('theme', raw.theme);
+
+  const gallery = collectGalleryUrls(raw);
+  if (gallery.length) setIfDefined('gallery', gallery);
+
+  setIfDefined('rating', toNumber(raw.rating));
+  setIfDefined('reviewCount', toNumber(raw.reviewCount ?? raw.reviews));
+  setIfDefined('badges', raw.badges);
+  setIfDefined('benefits', raw.benefits);
+
+  const ingredients = raw.ingredients_highlight ?? raw.ingredientsHighlight;
+  if (ingredients !== undefined) setIfDefined('ingredientsHighlight', ingredients);
+
+  const howToUse = raw.how_to_use ?? raw.howToUse;
+  if (howToUse !== undefined) setIfDefined('howToUse', howToUse);
+
+  setIfDefined('claims', raw.claims);
+  setIfDefined('disclaimer', raw.disclaimer);
+  setIfDefined('faqs', raw.faqs);
+  setIfDefined('shipping', raw.shipping);
+  setIfDefined('returns', raw.returns);
+  setIfDefined('reviewsList', raw.reviewsList);
+  setIfDefined('videoTitle', raw.videoTitle);
+  setIfDefined('videoDescription', raw.videoDescription);
+  setIfDefined('ingredientsTitle', raw.ingredientsTitle);
+
+  const pricing = raw.pricing ?? {
+    price: toNumber(raw.price),
+    originalValue: toNumber(raw.mrp),
+    currency: raw.currency,
+    discountText: raw.discountText,
+  };
+  if (pricing && Object.values(pricing).some((v) => v !== undefined && v !== null)) {
+    setIfDefined('pricing', {
+      ...pricing,
+      price: toNumber(pricing.price),
+      originalValue: toNumber(pricing.originalValue),
+    });
+  }
+
+  return Object.keys(experience).length ? experience : undefined;
+};
+
+const normalizeProductInput = (raw = {}, { allowDefaults = true, deriveSlug = true } = {}) => {
+  const normalized = { ...raw };
+
+  const name = raw.name ?? (allowDefaults ? raw.title ?? raw.id : raw.name);
+  if (name !== undefined) normalized.name = name;
+
+  if (deriveSlug) {
+    const slugSource = raw.slug ?? raw.id ?? (allowDefaults ? name : undefined);
+    if (slugSource) {
+      normalized.slug =
+        slugSource === raw.slug ? slugSource : slugify(slugSource) || slugSource;
+    }
+  } else if (raw.slug !== undefined) {
+    normalized.slug = raw.slug;
+  }
+
+  const description =
+    typeof raw.description === 'string'
+      ? raw.description
+      : raw.description?.body ??
+        raw.description?.headline ??
+        (allowDefaults ? raw.longDescription ?? raw.subtitle : undefined);
+  if (description !== undefined) normalized.description = description;
+
+  const priceValue = toNumber(
+    raw.basePrice ??
+      raw.price ??
+      raw.pricing?.price ??
+      raw.mrp ??
+      raw.pricing?.originalValue
+  );
+  if (priceValue !== undefined) normalized.basePrice = priceValue;
+
+  if (raw.brand !== undefined) normalized.brand = raw.brand;
+  if (raw.type !== undefined) normalized.productType = raw.type;
+  if (raw.tags !== undefined) normalized.tags = raw.tags;
+  if (raw.badges !== undefined) normalized.badges = raw.badges;
+  if (raw.media !== undefined) normalized.media = raw.media;
+  if (raw.ingredients !== undefined) normalized.ingredients = raw.ingredients;
+  if (raw.size !== undefined) normalized.size = raw.size;
+  if (raw.setContents !== undefined) normalized.setContents = raw.setContents;
+
+  if (raw.pricing !== undefined) {
+    const pricing = raw.pricing ?? {};
+    normalized.pricing = {
+      ...pricing,
+      price: toNumber(pricing.price),
+      originalValue: toNumber(pricing.originalValue),
+    };
+  }
+
+  if (raw.finish !== undefined) normalized.finish = raw.finish;
+  if (raw.collectionId !== undefined) normalized.collectionId = raw.collectionId;
+
+  const shades = normalizeShadesInput(raw.shades);
+  if (shades) normalized.shades = shades;
+
+  const images = normalizeImagesInput(raw);
+  if (images) normalized.images = images;
+
+  const experience = normalizeExperiencePayload(raw);
+  if (experience) normalized.experience = experience;
+
+  return normalized;
+};
+
+const parseProductInput = (raw, { partial = false } = {}) => {
+  const normalized = normalizeProductInput(raw, {
+    allowDefaults: !partial,
+    deriveSlug: !partial,
+  });
+  const schema = partial ? productSchema.partial() : productSchema;
+  return schema.parse(normalized);
+};
 
 const productInclude = {
   collection: true,
@@ -119,9 +389,18 @@ const toDecimalString = (value) =>
 const buildProductData = (payload) => ({
   name: payload.name,
   slug: payload.slug,
+  brand: payload.brand,
+  productType: payload.productType,
+  tags: payload.tags,
+  badges: payload.badges,
   description: payload.description,
   finish: payload.finish,
   basePrice: toDecimalString(payload.basePrice),
+  media: payload.media,
+  pricing: payload.pricing,
+  ingredients: payload.ingredients,
+  size: payload.size,
+  setContents: payload.setContents,
   experience: payload.experience,
   collection: payload.collectionId
     ? { connect: { id: payload.collectionId } }
@@ -139,6 +418,9 @@ const buildProductData = (payload) => ({
           name: shade.name,
           hexColor: shade.hexColor.toUpperCase(),
           sku: shade.sku ?? null,
+          arAssetUrl: shade.arAssetUrl ?? null,
+          arPreviewUrl: shade.arPreviewUrl ?? null,
+          arCode: shade.arCode ?? null,
           price: toDecimalString(shade.price),
           inventory: {
             create: {
@@ -150,29 +432,7 @@ const buildProductData = (payload) => ({
     : undefined,
 });
 
-const normalizeBulkItem = (item) => {
-  const normalized = {
-    ...item,
-    basePrice:
-      item.basePrice === undefined || item.basePrice === null
-        ? item.basePrice
-        : Number(item.basePrice),
-    shades: Array.isArray(item.shades)
-      ? item.shades.map((shade) => ({
-          ...shade,
-          price:
-            shade.price === undefined || shade.price === null
-              ? shade.price
-              : Number(shade.price),
-          quantity:
-            shade.quantity === undefined || shade.quantity === null
-              ? shade.quantity
-              : Number(shade.quantity),
-        }))
-      : undefined,
-  };
-  return productSchema.parse(normalized);
-};
+const normalizeBulkItem = (item) => parseProductInput(item);
 
 const toProductResponse = (product) => {
   if (!product) return product;
@@ -248,7 +508,7 @@ exports.getProduct = async (req, res, next) => {
 
 exports.createProduct = async (req, res, next) => {
   try {
-    const payload = productSchema.parse(req.body);
+    const payload = parseProductInput(req.body);
     const prisma = await getPrisma();
 
     const product = await prisma.product.create({
@@ -274,7 +534,7 @@ exports.createProduct = async (req, res, next) => {
 
 exports.updateProduct = async (req, res, next) => {
   try {
-    const payload = productSchema.partial().parse(req.body);
+    const payload = parseProductInput(req.body, { partial: true });
     const prisma = await getPrisma();
 
     const product = await prisma.product.update({
@@ -282,8 +542,17 @@ exports.updateProduct = async (req, res, next) => {
       data: {
         name: payload.name,
         slug: payload.slug,
+        brand: payload.brand,
+        productType: payload.productType,
+        tags: payload.tags,
+        badges: payload.badges,
         description: payload.description,
         finish: payload.finish,
+        media: payload.media,
+        pricing: payload.pricing,
+        ingredients: payload.ingredients,
+        size: payload.size,
+        setContents: payload.setContents,
         experience: payload.experience,
         basePrice:
           payload.basePrice !== undefined
@@ -320,6 +589,9 @@ exports.updateProduct = async (req, res, next) => {
             name: shade.name,
             hexColor: shade.hexColor.toUpperCase(),
             sku: shade.sku ?? null,
+            arAssetUrl: shade.arAssetUrl ?? null,
+            arPreviewUrl: shade.arPreviewUrl ?? null,
+            arCode: shade.arCode ?? null,
             price: toDecimalString(shade.price),
             productId: product.id,
           })),

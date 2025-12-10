@@ -1,50 +1,76 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Heart, Video, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import image1 from "@/assets/images/product1.png";
-import image2 from "@/assets/images/product2.png";
-import image3 from "@/assets/images/product3.png";
-import image4 from "@/assets/images/product4.png";
-import image5 from "@/assets/images/product5.png";
-import image6 from "@/assets/images/product6.png";
-import image7 from "@/assets/images/product7.png";
-import image8 from "@/assets/images/product8.png";
-import image9 from "@/assets/images/product9.png";
-import image10 from "@/assets/images/product10.png";
-import image11 from "@/assets/images/product11.png";
-import image12 from "@/assets/images/product12.png";
 import bg from "@/assets/background/card-bg.svg";
+import { useProductsCatalog } from "@/hooks/useProductsCatalog";
 
-const products = [
-  { id: 1, image: image1, name: "Cevonne - Satin Lipstick" },
-  { id: 2, image: image2, name: "Cevonne - Satin Lipstick" },
-  { id: 3, image: image3, name: "Cevonne - Satin Lipstick" },
-  { id: 4, image: image4, name: "Cevonne - Satin Lipstick" },
-  { id: 5, image: image5, name: "Cevonne - Satin Lipstick" },
-  { id: 6, image: image6, name: "Cevonne - Satin Lipstick" },
-  { id: 7, image: image7, name: "Cevonne - Satin Lipstick" },
-  { id: 8, image: image8, name: "Cevonne - Satin Lipstick" },
-  { id: 9, image: image9, name: "Cevonne - Satin Lipstick" },
-  { id: 10, image: image10, name: "Cevonne - Satin Lipstick" },
-  { id: 11, image: image11, name: "Cevonne - Satin Lipstick" },
-  { id: 12, image: image12, name: "Cevonne - Satin Lipstick" },
-];
+const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
+
+// Resolve local assets when product.media points to an asset id; otherwise pass through URLs
+const IMG = import.meta.glob("/src/assets/images/**/*", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+const FALLBACK_IMAGE =
+  IMG["/src/assets/images/product1.png"] ||
+  Object.values(IMG)[0] ||
+  "";
+const resolveAsset = (pth = "") => {
+  if (!pth) return "";
+  const clean = String(pth).trim();
+  if (clean.startsWith("http")) return clean;
+  const normalized = clean.startsWith("/src/") ? clean : `/src/assets/images/${clean.replace(/^\/+/, "")}`;
+  if (IMG[normalized]) return IMG[normalized];
+  const fname = normalized.split("/").pop();
+  const kv = Object.entries(IMG).find(([k]) => k.endsWith("/" + fname));
+  if (kv) return kv[1];
+  return FALLBACK_IMAGE || clean;
+};
 
 const INITIAL_VISIBLE = 4;
 
+const mapProductForCard = (product) => {
+  if (!product) return null;
+  const galleryItems = Array.isArray(product.media?.gallery) ? product.media.gallery : [];
+  const hero =
+    product.media?.heroImage ||
+    galleryItems.find((g) => g.role === "hero")?.url ||
+    galleryItems.find((g) => g.role === "hero")?.id ||
+    galleryItems[0]?.url ||
+    galleryItems[0]?.id ||
+    product.images?.[0]?.url ||
+    "";
+
+  return {
+    ...product,
+    cardHero: resolveAsset(hero),
+    marketingBadge: product.badges?.find((b) => b.type === "marketing")?.label,
+    priceValue: product.pricing?.price ?? product.price ?? product.basePrice ?? 0,
+    currency: product.pricing?.currency ?? product.currency ?? "₹",
+  };
+};
+
 const ProductCard = () => {
   const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? products : products.slice(0, INITIAL_VISIBLE);
-  const remaining = Math.max(products.length - INITIAL_VISIBLE, 0);
+  const { products: list, loading } = useProductsCatalog();
+
+  const mapped = useMemo(
+    () => (Array.isArray(list) ? list.map(mapProductForCard).filter(Boolean) : []),
+    [list]
+  );
+
+  const visible = expanded ? mapped : mapped.slice(0, INITIAL_VISIBLE);
+  const remaining = Math.max(mapped.length - INITIAL_VISIBLE, 0);
 
   return (
     <section className="w-full bg-white py-10 sm:px-6 lg:px-1">
       {/* Product grid */}
       <div className="mx-auto flex w-full snap-x snap-mandatory gap-2 sm:gap-1 overflow-x-auto pb-4 sm:grid sm:max-w-screen-2xl sm:grid-cols-2 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 no-scrollbar">
-        {visible.map((product) => (
+        {visible.map((product, i) => (
           <div
-            key={product.id}
+            key={product.id || product.slug || i}
             className="relative flex min-w-[85vw] flex-col justify-between overflow-hidden border border-neutral-200 bg-white text-center shadow-sm min-h-[420px] snap-center sm:min-w-0"
           >
             {/* Background behind everything */}
@@ -57,7 +83,7 @@ const ProductCard = () => {
 
             {/* Card content (wrapped with Link to details) */}
             <Link
-              to={`/product/${product.id}`}
+              to={`/product/${product.slug || product.id || ""}`}
               state={{ product }}
               className="relative z-10 flex h-full flex-col"
             >
@@ -95,7 +121,7 @@ const ProductCard = () => {
                 </button>
 
                 <img
-                  src={product.image}
+                  src={product.cardHero}
                   alt={product.name}
                   className="max-h-[500px] w-full object-contain"
                 />
@@ -112,26 +138,41 @@ const ProductCard = () => {
 
               {/* Details */}
               <div className="mt-2 px-4 pb-6 text-sm text-left">
-                <p className="text-[12px] leading-none text-neutral-500">New · Refillable</p>
+                <p className="text-[12px] leading-none text-neutral-500">
+                  {product.marketingBadge || "New • Refillable"}
+                </p>
                 <div className="mt-1 flex items-center justify-between">
                   <h3 className="text-[14px] font-medium text-neutral-800">
                     {product.name}
                   </h3>
                   <div className="flex items-center gap-1">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#AD0F23]" />
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#BF4A57]" />
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8E0F1E]" />
-                    <span className="ml-2 text-[12px] leading-none text-neutral-600">+ 24</span>
+                    {product.priceValue ? (
+                      <span className="text-sm font-semibold">
+                        {product.currency} {product.priceValue}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#AD0F23]" />
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#BF4A57]" />
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8E0F1E]" />
+                        <span className="ml-2 text-[12px] leading-none text-neutral-600">+ 24</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             </Link>
           </div>
         ))}
+        {!visible.length && !loading && (
+          <div className="col-span-full py-12 text-center text-sm text-neutral-500">
+            No products available yet.
+          </div>
+        )}
       </div>
 
       {/* View more / less */}
-      {products.length > INITIAL_VISIBLE && (
+      {mapped.length > INITIAL_VISIBLE && (
         <div className="mt-10 flex justify-center">
           <button
             type="button"
@@ -141,6 +182,11 @@ const ProductCard = () => {
           >
             {expanded ? "View Less" : remaining > 0 ? `View More (${remaining})` : "View More"}
           </button>
+        </div>
+      )}
+      {!mapped.length && !loading && (
+        <div className="mt-6 text-center text-sm text-neutral-500">
+          No products available.
         </div>
       )}
     </section>

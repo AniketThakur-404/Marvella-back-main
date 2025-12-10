@@ -17,6 +17,7 @@ import Dashboard from "@/components/admin-dashboard/Dashboard"
 import ProductOverview from "@/components/admin-dashboard/ProductOverview"
 import ProductCreate from "@/components/admin-dashboard/ProductCreate"
 import ProductEdit from "@/components/admin-dashboard/ProductEdit"
+import ShadesPage from "@/components/admin-dashboard/Shades"
 import ProfileLayout from "@/components/profile/ProfileLayout"
 import ProfileOverview from "@/components/profile/ProfileOverview"
 import Orders from "@/components/profile/Orders"
@@ -56,6 +57,7 @@ const App = () => {
         <Route path='/dashboard/products' element={<ProductOverview />} />
         <Route path='/dashboard/products/new' element={<ProductCreate />} />
         <Route path='/dashboard/products/:id/edit' element={<ProductEdit />} />
+        <Route path='/dashboard/shades' element={<ShadesPage />} />
 
         {/* Profile Routes */}
         <Route path="/profile" element={<ProfileLayout />}>

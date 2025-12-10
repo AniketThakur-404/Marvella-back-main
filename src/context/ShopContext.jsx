@@ -1,10 +1,33 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const ShopContext = createContext(null);
+const CART_KEY = "marvella:cart";
+const WISHLIST_KEY = "marvella:wishlist";
+
+const readStored = (key, fallback = []) => {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : fallback;
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (err) {
+    console.warn(`Failed to read ${key} from storage`, err);
+    return fallback;
+  }
+};
+
+const persistStored = (key, value) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`Failed to persist ${key} to storage`, err);
+  }
+};
 
 function ShopProvider({ children }) {
-  const [cartItems, setCartItems] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
+  const [cartItems, setCartItems] = useState(() => readStored(CART_KEY, []));
+  const [wishlist, setWishlist] = useState(() => readStored(WISHLIST_KEY, []));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerView, setDrawerView] = useState("cart");
 
@@ -23,6 +46,8 @@ function ShopProvider({ children }) {
     if (!key) return;
     setCartItems((prev) => prev.filter((item) => item.key !== key));
   };
+
+  const clearCart = () => setCartItems([]);
 
   const toggleWishlist = (item) => {
     if (!item?.key) return "none";
@@ -52,6 +77,15 @@ function ShopProvider({ children }) {
     setDrawerOpen(false);
   };
 
+  // Persist cart/wishlist to localStorage so they stay across refreshes.
+  useEffect(() => {
+    persistStored(CART_KEY, cartItems);
+  }, [cartItems]);
+
+  useEffect(() => {
+    persistStored(WISHLIST_KEY, wishlist);
+  }, [wishlist]);
+
   const value = useMemo(
     () => ({
       cartItems,
@@ -64,6 +98,7 @@ function ShopProvider({ children }) {
       drawerView,
       openDrawer,
       closeDrawer,
+      clearCart,
     }),
     [cartItems, wishlist, drawerOpen, drawerView]
   );

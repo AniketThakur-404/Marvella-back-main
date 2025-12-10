@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 import { formatCurrency, getProductStock } from "./utils";
+import { BulkProductTools } from "./components/BulkProductTools";
 
 const defaultRequest = (url, options) => fetch(url, options);
 
@@ -264,6 +265,16 @@ export default function ProductOverview() {
                 )}
               </CardContent>
             </Card>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-lg font-semibold text-primary">Bulk actions</p>
+                <p className="text-sm text-muted-foreground">
+                  Upload JSON or export the catalogue for quick admin updates.
+                </p>
+              </div>
+              <BulkProductTools request={request} refresh={refresh} />
+            </div>
           </main>
         </SidebarInset>
       </div>

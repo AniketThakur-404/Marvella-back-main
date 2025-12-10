@@ -1,23 +1,22 @@
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "wasm"
+  provider = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String              @id @default(cuid())
+  email        String              @unique
   name         String?
   passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  role         String   @default("CUSTOMER")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  role         String              @default("CUSTOMER")
+  resetTokens  PasswordResetToken?
   reviews      Review[]
-  resetTokens  PasswordResetToken[]
 }
 
 model Collection {
@@ -38,14 +37,23 @@ model Product {
   description  String?
   finish       String?
   basePrice    Decimal        @db.Decimal(10, 2)
+  brand        String?
+  productType  String?
+  tags         Json?
+  badges       Json?
+  media        Json?
+  pricing      Json?
+  ingredients  Json?
+  size         Json?
+  setContents  Json?
   experience   Json?
   collectionId String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   collection   Collection?    @relation(fields: [collectionId], references: [id])
   images       ProductImage[]
-  shades       Shade[]
   reviews      Review[]
+  shades       Shade[]
 
   @@index([name])
   @@index([collectionId])
@@ -56,6 +64,7 @@ model ProductImage {
   url       String
   productId String
   createdAt DateTime @default(now())
+  alt       String?
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
@@ -66,6 +75,9 @@ model Shade {
   sku       String?    @unique
   price     Decimal?   @db.Decimal(10, 2)
   productId String
+  arAssetUrl String?
+  arPreviewUrl String?
+  arCode    String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   inventory Inventory?
@@ -101,11 +113,11 @@ model Review {
 }
 
 model ReviewMedia {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   url       String
   reviewId  String
   createdAt DateTime @default(now())
-  review    Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@index([reviewId])
 }

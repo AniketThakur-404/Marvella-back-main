@@ -45,6 +45,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { API_BASE, formatCurrency, slugify, toNumber } from "../utils";
+import { AR_STATIC_SHADES } from "@/data/arShades";
 
 export function ManagementPanel({
   products,
@@ -470,6 +471,40 @@ export function ManagementPanel({
                 </TableBody>
               </Table>
             </ScrollArea>
+            <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-muted/10 p-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-primary">AR static shades</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pulled from the AR experience file; managed here for reference only.
+                  </p>
+                </div>
+                <Badge variant="outline" className="rounded-full">
+                  {AR_STATIC_SHADES.length} shades
+                </Badge>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {AR_STATIC_SHADES.map((shade) => (
+                  <div
+                    key={shade.id}
+                    className="flex items-center gap-3 rounded-xl border border-border/50 bg-white px-3 py-2 shadow-sm"
+                  >
+                    <span
+                      className="h-8 w-8 rounded-full border border-border/70 shadow-sm flex items-center justify-center text-[10px] font-semibold"
+                      style={{ backgroundColor: shade.color === "transparent" ? "#f7f7f7" : shade.color }}
+                    >
+                      {shade.color === "transparent" ? "Ø" : ""}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{shade.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {shade.code ? `Code ${shade.code}` : "No code"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="inventory">

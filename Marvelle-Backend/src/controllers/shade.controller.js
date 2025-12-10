@@ -9,6 +9,9 @@ const shadeSchema = z.object({
     .regex(/^#?[0-9a-fA-F]{6}$/, 'Hex must be a 6 character hex code')
     .transform((value) => (value.startsWith('#') ? value : `#${value}`)),
   sku: z.string().optional(),
+  arAssetUrl: z.string().trim().optional().nullable(),
+  arPreviewUrl: z.string().trim().optional().nullable(),
+  arCode: z.string().trim().optional().nullable(),
   price: z.number().min(0).optional(),
   quantity: z.number().int().min(0).optional(),
   productId: z.string().optional(),
@@ -67,6 +70,9 @@ exports.createShade = async (req, res, next) => {
         name: payload.name,
         hexColor: normalizeHex(payload.hexColor),
         sku: payload.sku ?? null,
+        arAssetUrl: payload.arAssetUrl ?? null,
+        arPreviewUrl: payload.arPreviewUrl ?? null,
+        arCode: payload.arCode ?? null,
         price: toDecimalString(payload.price),
         product: payload.productId
           ? { connect: { id: payload.productId } }
@@ -118,6 +124,18 @@ exports.updateShade = async (req, res, next) => {
             ? normalizeHex(payload.hexColor)
             : undefined,
         sku: payload.sku ?? undefined,
+        arAssetUrl:
+          payload.arAssetUrl !== undefined
+            ? payload.arAssetUrl || null
+            : undefined,
+        arPreviewUrl:
+          payload.arPreviewUrl !== undefined
+            ? payload.arPreviewUrl || null
+            : undefined,
+        arCode:
+          payload.arCode !== undefined
+            ? payload.arCode || null
+            : undefined,
         price:
           payload.price !== undefined ? toDecimalString(payload.price) : undefined,
         product: payload.productId

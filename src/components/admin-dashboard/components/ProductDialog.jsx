@@ -63,16 +63,17 @@ function ProductFormBase({
   product = null,
   productId,
   open = false,
-  onClose = () => {},
+  onClose = () => { },
   collections = [],
   request = defaultRequest,
-  refresh = () => {},
+  refresh = () => { },
   afterSubmit,
   formId,
 }) {
   const isDialog = layout === "dialog";
   const isEdit = mode === "edit";
   const resolvedFormId = formId ?? (isDialog ? "product-dialog-form" : "product-create-form");
+  const showAllSections = !isDialog;
 
   const generateShadeKey = () => generateId();
 
@@ -88,15 +89,24 @@ function ProductFormBase({
   const defaultValues = {
     name: "",
     slug: "",
-    description: "",
+    brand: "CEVONNE",
+    type: "single",
+    tags: "",
+    headline: "",
+    description: "", // This will be mapped to body
     finish: "",
     basePrice: "",
+    currency: "INR",
+    originalValue: "",
     collectionId: "",
-    compareAtPrice: "",
+    compareAtPrice: "", // Keep for backward compat or map to originalValue
     shippingWeight: "",
     shippingLength: "",
     shippingWidth: "",
     shippingHeight: "",
+    unitCount: "1",
+    sizeMl: "",
+    sizeFlOz: "",
     inventoryQuantity: "",
     inventorySku: "",
     onlineSelling: true,
@@ -132,6 +142,13 @@ function ProductFormBase({
     experienceReturns: "",
     experienceRating: "",
     experienceReviewCount: "",
+    experienceReviewCount: "",
+    supportingIngredients: "",
+    coverage: "",
+    fragrance: "",
+    videoTitle: "",
+    videoDescription: "",
+    ingredientsTitle: "",
   };
 
   const { register, handleSubmit, setValue, reset, getValues, watch, control } = useForm({
@@ -140,6 +157,7 @@ function ProductFormBase({
       shades: [createEmptyShade()],
       experienceIngredients: [{ name: "", why: "" }],
       experienceFaqs: [{ q: "", a: "" }],
+      reviewsList: [{ author: "", date: "", rating: "5", title: "", comment: "" }],
     },
   });
 
@@ -177,6 +195,15 @@ function ProductFormBase({
   } = useFieldArray({
     control,
     name: "experienceFaqs",
+  });
+  const {
+    fields: reviewFields,
+    append: appendReview,
+    remove: removeReview,
+    replace: replaceReviews,
+  } = useFieldArray({
+    control,
+    name: "reviewsList",
   });
 
   // NOTE: no TS generics here; this is .jsx
@@ -232,18 +259,34 @@ function ProductFormBase({
       ...defaultValues,
       name: prod?.name ?? "",
       slug: prod?.slug ?? "",
-      description: prod?.description ?? "",
+      brand: prod?.brand ?? "CEVONNE",
+      type: prod?.type ?? "single",
+      tags: Array.isArray(prod?.tags) ? prod.tags.join(", ") : "",
+      headline: prod?.description?.headline ?? "",
+      description: prod?.description?.body ?? prod?.description ?? "",
+      headline: prod?.description?.headline ?? "",
+      description: prod?.description?.body ?? prod?.description ?? "",
       finish: prod?.finish ?? "",
-      basePrice: prod?.basePrice != null ? String(prod.basePrice) : "",
+      coverage: prod?.coverage ?? "",
+      fragrance: prod?.fragrance ?? "",
+      videoTitle: experience.videoTitle ?? "",
+      videoDescription: experience.videoDescription ?? "",
+      ingredientsTitle: experience.ingredientsTitle ?? "",
+      basePrice: prod?.pricing?.price != null ? String(prod.pricing.price) : (prod?.basePrice != null ? String(prod.basePrice) : ""),
+      currency: prod?.pricing?.currency ?? "INR",
+      originalValue: prod?.pricing?.originalValue != null ? String(prod.pricing.originalValue) : "",
       collectionId: prod?.collectionId ?? "",
       compareAtPrice: prod?.compareAtPrice != null ? String(prod.compareAtPrice) : "",
+      unitCount: prod?.size?.unitCount != null ? String(prod.size.unitCount) : "1",
+      sizeMl: prod?.size?.sizePerUnit?.ml != null ? String(prod.size.sizePerUnit.ml) : "",
+      sizeFlOz: prod?.size?.sizePerUnit?.flOz != null ? String(prod.size.sizePerUnit.flOz) : "",
       experienceSubtitle: experience.subtitle ?? "",
       experienceCategoryPath: Array.isArray(experience.categoryPath)
         ? experience.categoryPath.join("\n")
         : "",
       experienceLongDescription: experience.longDescription ?? prod?.description ?? "",
       experienceVideoUrl: experience.videoUrl ?? "",
-      experienceHeroImage: experience.hero?.image ?? prod?.images?.[0]?.url ?? "",
+      experienceHeroImage: prod?.media?.heroImage ?? experience.hero?.image ?? prod?.images?.[0]?.url ?? "",
       experienceHeroObjectPosition: experience.hero?.objectPosition ?? "",
       experienceHeroBg: experience.hero?.bg ?? "",
       experienceHeroOverlay: experience.hero?.overlay ?? "",
@@ -260,8 +303,8 @@ function ProductFormBase({
       experienceToneVideo: experience.theme?.bgTone?.video ?? "",
       experienceToneShades: experience.theme?.bgTone?.shades ?? "",
       experienceToneReviews: experience.theme?.bgTone?.reviews ?? "",
-      experienceGallery: joinLines(experience.gallery ?? galleryFromImages),
-      experienceBadges: joinLines(experience.badges),
+      experienceGallery: joinLines(prod?.media?.gallery?.map(g => g.id || g.url) ?? experience.gallery ?? galleryFromImages),
+      experienceBadges: joinLines(prod?.badges?.map(b => b.label) ?? experience.badges),
       experienceBenefits: joinLines(experience.benefits),
       experienceHowToUse: joinLines(experience.howToUse ?? experience.how_to_use),
       experienceClaims: joinLines(experience.claims),
@@ -273,38 +316,57 @@ function ProductFormBase({
         experience.reviewCount != null
           ? String(experience.reviewCount)
           : prod?.reviewCount != null
-          ? String(prod.reviewCount)
-          : prod?.reviews != null
-          ? String(prod.reviews)
-          : "",
+            ? String(prod.reviewCount)
+            : prod?.reviews != null
+              ? String(prod.reviews)
+              : "",
+      supportingIngredients: Array.isArray(prod?.ingredients?.supportingIngredients)
+        ? prod.ingredients.supportingIngredients.join("\n")
+        : "",
       experienceIngredients:
-        Array.isArray(ingredientList) && ingredientList.length
-          ? ingredientList.map((item, index) => ({
+        Array.isArray(prod?.ingredients?.keyActives)
+          ? prod.ingredients.keyActives.map((item, index) => ({
+            name: item.name,
+            why: item.description,
+            id: `${index}`
+          }))
+          : Array.isArray(ingredientList) && ingredientList.length
+            ? ingredientList.map((item, index) => ({
               name: item?.name ?? item?.ingredient ?? "",
               why: item?.why ?? item?.detail ?? item?.description ?? "",
               id: item.id ?? `${index}`,
             }))
-          : [{ name: "", why: "" }],
+            : [{ name: "", why: "" }],
       experienceFaqs:
         faqList.length && Array.isArray(faqList)
           ? faqList.map((faq, index) => ({
-              q: faq.q ?? faq.question ?? "",
-              a: faq.a ?? faq.answer ?? "",
-              id: faq.id ?? `${index}`,
-            }))
+            q: faq.q ?? faq.question ?? "",
+            a: faq.a ?? faq.answer ?? "",
+            id: faq.id ?? `${index}`,
+          }))
           : [{ q: "", a: "" }],
+      reviewsList:
+        Array.isArray(prod?.reviewsList) && prod.reviewsList.length
+          ? prod.reviewsList.map((r, index) => ({
+            author: r.author ?? "",
+            date: r.date ?? "",
+            rating: r.rating != null ? String(r.rating) : "5",
+            title: r.title ?? "",
+            comment: r.comment ?? "",
+          }))
+          : [{ author: "", date: "", rating: "5", title: "", comment: "" }],
       shades: Array.isArray(prod?.shades)
         ? prod.shades.map((shade) => ({
-            id: shade.id ?? generateShadeKey(),
-            name: shade.name ?? "",
-            hexColor: shade.hexColor ?? "#a855f7",
-            sku: shade.sku ?? "",
-            price:
-              typeof shade.price === "string" || typeof shade.price === "number"
-                ? String(shade.price)
-                : "",
-            quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
-          }))
+          id: shade.id ?? generateShadeKey(),
+          name: shade.name ?? "",
+          hexColor: shade.hexColor ?? "#a855f7",
+          sku: shade.sku ?? "",
+          price:
+            typeof shade.price === "string" || typeof shade.price === "number"
+              ? String(shade.price)
+              : "",
+          quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
+        }))
         : [createEmptyShade()],
     };
   };
@@ -319,15 +381,15 @@ function ProductFormBase({
       descriptionRef.current = product.description ?? "";
       const mappedShades = Array.isArray(product.shades)
         ? product.shades.map((shade) => ({
-            id: shade.id ?? generateShadeKey(),
-            name: shade.name ?? "",
-            hexColor: shade.hexColor ?? "#a855f7",
-            sku: shade.sku ?? "",
-            price:
-              typeof shade.price === "string" || typeof shade.price === "number"
-                ? String(shade.price)
-                : "",
-            quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
+          id: shade.id ?? generateShadeKey(),
+          name: shade.name ?? "",
+          hexColor: shade.hexColor ?? "#a855f7",
+          sku: shade.sku ?? "",
+          price:
+            typeof shade.price === "string" || typeof shade.price === "number"
+              ? String(shade.price)
+              : "",
+          quantity: shade.inventory?.quantity != null ? String(shade.inventory.quantity) : "",
         }))
         : [];
       replaceShades(mappedShades.length ? mappedShades : [createEmptyShade()]);
@@ -426,8 +488,8 @@ function ProductFormBase({
     if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
     if (typeof value !== "string") return [];
     return value
-      .split(/\r?\n/)
-      .map((item) => item.replace(/^[\s*-•]+/, "").trim())
+      .split(/[\r\n,]+/)
+      .map((item) => item.replace(/^[\s*-]+/, "").trim())
       .filter(Boolean);
   };
   const compactObject = (obj) => {
@@ -448,6 +510,9 @@ function ProductFormBase({
     try {
       const basePriceFloat = parseFloat(values.basePrice ?? "0");
       const basePrice = Number.isFinite(basePriceFloat) ? basePriceFloat : 0;
+      const slugValue = values.slug?.trim() || slugify(values.name || generateId());
+      const slugSafe = slugify(slugValue);
+      const tagList = parseList(values.tags);
 
       let uploadedImages = [];
       if (images.length) {
@@ -458,6 +523,13 @@ function ProductFormBase({
         ...existingImages.map((image) => ({ url: image.url })),
         ...uploadedImages.map((url) => ({ url })),
       ];
+
+      const galleryListRaw = parseList(values.experienceGallery);
+      const galleryList = galleryListRaw.length
+        ? galleryListRaw
+        : payloadImages.map((img) => img.url).filter(Boolean);
+
+      const heroImage = values.experienceHeroImage || galleryList[0] || payloadImages[0]?.url || "";
 
       const shadePayload = (values.shades || [])
         .map((shade) => ({
@@ -473,7 +545,7 @@ function ProductFormBase({
         .filter((s) => s.name && s.hexColor);
 
       const hero = compactObject({
-        image: asOptionalString(values.experienceHeroImage),
+        image: asOptionalString(heroImage),
         objectPosition: asOptionalString(values.experienceHeroObjectPosition),
         bg: asOptionalString(values.experienceHeroBg),
         overlay: asOptionalString(values.experienceHeroOverlay),
@@ -520,9 +592,12 @@ function ProductFormBase({
         categoryPath: parseList(values.experienceCategoryPath),
         longDescription: asOptionalString(values.experienceLongDescription),
         videoUrl: asOptionalString(values.experienceVideoUrl),
+        videoTitle: asOptionalString(values.videoTitle),
+        videoDescription: asOptionalString(values.videoDescription),
+        ingredientsTitle: asOptionalString(values.ingredientsTitle),
         hero,
         theme,
-        gallery: parseList(values.experienceGallery),
+        gallery: galleryList,
         badges: parseList(values.experienceBadges),
         benefits: parseList(values.experienceBenefits),
         howToUse: parseList(values.experienceHowToUse),
@@ -544,10 +619,50 @@ function ProductFormBase({
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: slugSafe, // Use slug as ID for now as per sample
+          slug: slugSafe,
           name: values.name,
-          slug: values.slug,
-          description: asOptionalString(descriptionRef.current),
+          brand: values.brand,
+          type: values.type,
+          tags: tagList,
+          badges: parseList(values.experienceBadges).map(label => ({ type: "marketing", label })),
+          description: {
+            headline: values.headline,
+            body: asOptionalString(descriptionRef.current),
+          },
+          pricing: {
+            currency: values.currency || "INR",
+            price: basePrice,
+            originalValue: asOptionalNumber(values.originalValue) || 0,
+          },
+          size: {
+            unitCount: asOptionalNumber(values.unitCount) || 1,
+            sizePerUnit: {
+              ml: asOptionalNumber(values.sizeMl) || 0,
+              flOz: asOptionalNumber(values.sizeFlOz) || 0,
+            }
+          },
+          ingredients: {
+            keyActives: ingredientsPayload.map(i => ({ name: i.name, description: i.why })),
+            supportingIngredients: parseList(values.supportingIngredients),
+          },
+          reviewsList: values.reviewsList.map(r => ({
+            ...r,
+            rating: Number(r.rating) || 5
+          })),
+          media: {
+            heroImage,
+            gallery: galleryList.map((url, i) => ({
+              id: `${slugSafe}-gallery-${i}`,
+              alt: values.name,
+              role: i === 0 ? "hero" : "swatch", // simplified role assignment
+              url: url // assuming url is stored here, though schema implies objects
+            }))
+          },
+          // Keep old fields for backward compatibility if needed, or just rely on new structure
           finish: asOptionalString(values.finish),
+          coverage: asOptionalString(values.coverage),
+          fragrance: asOptionalString(values.fragrance),
           basePrice,
           collectionId: values.collectionId || undefined,
           images: payloadImages.length ? payloadImages : undefined,
@@ -590,7 +705,23 @@ function ProductFormBase({
         </div>
       );
     }
-    return <div className={`pr-1 md:pr-2 lg:pr-3 ${className}`}>{children}</div>;
+    return <div className={`pr-1 md:pr-2 lg:pr-3 ${className} ${showAllSections ? "pb-0" : ""}`}>{children}</div>;
+  };
+
+  const Section = ({ value, className = "", children }) => {
+    const resolvedClass = className;
+    if (showAllSections) {
+      return (
+        <div id={`section-${value}`} className={resolvedClass}>
+          {children}
+        </div>
+      );
+    }
+    return (
+      <TabsContent value={value} forceMount className={`h-full ${resolvedClass}`}>
+        {children}
+      </TabsContent>
+    );
   };
 
   const contentHeader = isDialog ? (
@@ -620,25 +751,26 @@ function ProductFormBase({
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className={`flex flex-col gap-4 ${isDialog ? "flex-1 min-h-0" : ""} ${isDialog ? "" : "mt-4"}`}
+          className={`flex flex-col gap-4 ${isDialog ? "flex-1 min-h-0" : "mt-4"}`}
         >
-          <div className={isDialog ? "md:hidden" : ""}>
-            <TabsList className={`${isDialog ? "grid grid-cols-2" : "flex flex-wrap"} gap-2 rounded-2xl bg-muted/30 p-1`}>
-              {SECTIONS.map((section) => (
-                <TabsTrigger
-                  key={section.value}
-                  value={section.value}
-                  className={`rounded-full border border-transparent px-3 py-2 text-xs font-semibold text-muted-foreground transition data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
-                    isDialog ? "" : "md:text-sm"
-                  }`}
-                >
-                  {section.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
+          {!showAllSections ? (
+            <div className={isDialog ? "md:hidden" : ""}>
+              <TabsList className={`${isDialog ? "grid grid-cols-2" : "flex flex-wrap"} gap-2 rounded-2xl bg-muted/30 p-1`}>
+                {SECTIONS.map((section) => (
+                  <TabsTrigger
+                    key={section.value}
+                    value={section.value}
+                    className={`rounded-full border border-transparent px-3 py-2 text-xs font-semibold text-muted-foreground transition data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${isDialog ? "" : "md:text-sm"
+                      }`}
+                  >
+                    {section.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+          ) : null}
 
-          <div className={`flex flex-col gap-4 md:flex-row md:items-start md:gap-6 ${isDialog ? "flex-1 min-h-0" : ""}`}>
+          <div className={`flex flex-col gap-4 ${isDialog ? "md:flex-row md:items-start md:gap-6 flex-1 min-h-0" : ""}`}>
             {isDialog ? (
               <div className="hidden md:flex w-64 flex-shrink-0 flex-col gap-3 rounded-3xl bg-muted/20 p-4 shadow-sm">
                 <TabsList className="flex flex-col gap-3">
@@ -662,38 +794,64 @@ function ProductFormBase({
             ) : null}
 
             <div className={`flex-1 min-w-0 rounded-3xl border border-border/40 bg-white/95 px-1 py-1 md:px-4 ${isDialog ? "min-h-0 overflow-hidden" : "overflow-visible"}`}>
-              {/* DETAILS */}
-              <TabsContent value="details" forceMount className="h-full">
-                <ScrollContainer className="space-y-6 pb-6">
-                  <div className="space-y-6 pb-6">
-                    <Card className="border-none shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle>Description</CardTitle>
-                        <CardDescription>Tell customers what makes this product special.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-5">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {/* NAME (uncontrolled; updates slug when auto) */}
-                          <div className="space-y-2">
-                            <Label htmlFor="product-name">Product name</Label>
-                            <Input
-                              id="product-name"
-                              autoComplete="off"
-                              required
-                              {...register("name", {
-                                required: true,
-                                onChange: (e) => {
-                                  if (!manualSlug) {
-                                    setValue("slug", slugify(e.target.value), { shouldDirty: true });
-                                  }
-                                },
-                              })}
-                            />
+              <div className={`${showAllSections ? "flex flex-col gap-8 pb-0" : ""}`}>
+                {/* DETAILS */}
+              <Section value="details">
+                <ScrollContainer className={`space-y-6 ${showAllSections ? "" : "pb-6"}`}>
+                    <div className="space-y-6 pb-6">
+                      <Card className="border-none shadow-sm">
+                        <CardHeader className="pb-4">
+                          <CardTitle>Description</CardTitle>
+                          <CardDescription>Tell customers what makes this product special.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {/* NAME (uncontrolled; updates slug when auto) */}
+                            <div className="space-y-2">
+                              <Label htmlFor="product-name">Product name</Label>
+                              <Input
+                                id="product-name"
+                                autoComplete="off"
+                                required
+                                {...register("name", {
+                                  required: true,
+                                  onChange: (e) => {
+                                    if (!manualSlug) {
+                                      setValue("slug", slugify(e.target.value), { shouldDirty: true });
+                                    }
+                                  },
+                                })}
+                              />
+                            </div>
+
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="product-brand">Brand</Label>
+                              <Input id="product-brand" placeholder="CEVONNE" {...register("brand")} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="product-type">Type</Label>
+                              <Input id="product-type" placeholder="single" {...register("type")} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="product-tags">Tags</Label>
+                              <Input id="product-tags" placeholder="lipstick, matte, rose" {...register("tags")} />
+                            </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="product-finish">Finish</Label>
-                            <Input id="product-finish" placeholder="Matte, satin, glossy..." autoComplete="off" {...register("finish")} />
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="product-finish">Finish</Label>
+                              <Input id="product-finish" placeholder="Matte, satin, glossy..." autoComplete="off" {...register("finish")} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="product-coverage">Coverage</Label>
+                              <Input id="product-coverage" placeholder="Full, medium, sheer..." autoComplete="off" {...register("coverage")} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="product-fragrance">Fragrance</Label>
+                              <Input id="product-fragrance" placeholder="Fragrance-free, vanilla..." autoComplete="off" {...register("fragrance")} />
+                            </div>
                           </div>
 
                           {/* SLUG (uncontrolled; no watch/value prop) */}
@@ -846,11 +1004,11 @@ function ProductFormBase({
                     </Card>
                   </div>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
 
               {/* STORY */}
-              <TabsContent value="story" forceMount className="h-full">
-                <ScrollContainer className="space-y-6 pb-6">
+              <Section value="story">
+                <ScrollContainer className={`space-y-6 ${showAllSections ? "" : "pb-6"}`}>
                   <Card className="border-none shadow-sm">
                     <CardHeader className="pb-4">
                       <CardTitle>Product story</CardTitle>
@@ -858,6 +1016,10 @@ function ProductFormBase({
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="product-headline">Headline</Label>
+                          <Textarea id="product-headline" rows={2} placeholder="A soft mauve-rose..." {...register("headline")} />
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="experience-subtitle">Subtitle</Label>
                           <Input id="experience-subtitle" placeholder="Feather-light. Full-pigment." autoComplete="off" {...register("experienceSubtitle")} />
@@ -951,6 +1113,16 @@ function ProductFormBase({
                           <Label htmlFor="experience-video">Product video URL</Label>
                           <Input id="experience-video" placeholder="intro1.mp4 or https://..." {...register("experienceVideoUrl")} />
                         </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="video-title">Video Title</Label>
+                            <Input id="video-title" placeholder="Cevonne" {...register("videoTitle")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="video-description">Video Description</Label>
+                            <Textarea id="video-description" rows={2} placeholder="Velvet matte color..." {...register("videoDescription")} />
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="experience-theme-default">Default gradient / background</Label>
                           <Input id="experience-theme-default" placeholder="radial-gradient(...)" {...register("experienceThemeDefaultBg")} />
@@ -1002,6 +1174,11 @@ function ProductFormBase({
                           <Label htmlFor="experience-disclaimer">Disclaimer</Label>
                           <Textarea id="experience-disclaimer" rows={2} placeholder="* Consumer study, n=60, after 1 week of use" {...register("experienceDisclaimer")} />
                         </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="supporting-ingredients">Supporting Ingredients (comma or newline separated)</Label>
+                          <Textarea id="supporting-ingredients" rows={4} placeholder="Ricinus Communis (Castor) Seed Oil..." {...register("supportingIngredients")} />
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor="experience-rating">Avg. rating</Label>
@@ -1038,6 +1215,10 @@ function ProductFormBase({
                           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => appendIngredient({ name: "", why: "" })}>
                             Add ingredient
                           </Button>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="ingredients-title">Section Title</Label>
+                          <Input id="ingredients-title" placeholder="Powered by Science" {...register("ingredientsTitle")} />
                         </div>
                         {ingredientFields.length ? (
                           <div className="space-y-3">
@@ -1095,14 +1276,62 @@ function ProductFormBase({
                           <p className="text-sm text-muted-foreground">Add common questions shoppers ask.</p>
                         )}
                       </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold">Reviews</Label>
+                          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => appendReview({ author: "", date: "", rating: "5", title: "", comment: "" })}>
+                            Add Review
+                          </Button>
+                        </div>
+                        {reviewFields.length ? (
+                          <div className="space-y-3">
+                            {reviewFields.map((field, index) => (
+                              <div key={field.id ?? index} className="space-y-2 rounded-2xl border border-border/60 bg-muted/10 p-3">
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="space-y-1.5">
+                                    <Label htmlFor={`review-${index}-author`}>Author</Label>
+                                    <Input id={`review-${index}-author`} placeholder="Jane Doe" {...register(`reviewsList.${index}.author`)} />
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <Label htmlFor={`review-${index}-date`}>Date</Label>
+                                    <Input id={`review-${index}-date`} placeholder="Oct 12, 2023" {...register(`reviewsList.${index}.date`)} />
+                                  </div>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-[1fr,3fr]">
+                                  <div className="space-y-1.5">
+                                    <Label htmlFor={`review-${index}-rating`}>Rating</Label>
+                                    <Input id={`review-${index}-rating`} type="number" min="1" max="5" step="0.1" {...register(`reviewsList.${index}.rating`)} />
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <Label htmlFor={`review-${index}-title`}>Title</Label>
+                                    <Input id={`review-${index}-title`} placeholder="Great product!" {...register(`reviewsList.${index}.title`)} />
+                                  </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`review-${index}-comment`}>Comment</Label>
+                                  <Textarea id={`review-${index}-comment`} rows={2} placeholder="I loved the texture..." {...register(`reviewsList.${index}.comment`)} />
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => removeReview(index)}>
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No reviews added manually.</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
 
               {/* INVENTORY */}
-              <TabsContent value="inventory" forceMount className="h-full">
-                <ScrollContainer className="space-y-6 pb-4" allowScroll>
+              <Section value="inventory">
+                <ScrollContainer className={`space-y-6 ${showAllSections ? "" : "pb-4"}`} allowScroll>
                   <div className="space-y-6 pb-4">
                     <Card className="border-none shadow-sm">
                       <CardHeader className="pb-4">
@@ -1283,11 +1512,11 @@ function ProductFormBase({
                     </Card>
                   </div>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
 
               {/* MEDIA */}
-              <TabsContent value="media" forceMount className="h-full">
-                <ScrollContainer className="space-y-4 pb-4" allowScroll>
+              <Section value="media">
+                <ScrollContainer className={`space-y-4 ${showAllSections ? "" : "pb-4"}`} allowScroll>
                   <div className="space-y-6 pb-4">
                     <Card className="border-none shadow-sm">
                       <CardHeader className="pb-4">
@@ -1347,11 +1576,11 @@ function ProductFormBase({
                     </Card>
                   </div>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
 
               {/* SHIPPING */}
-              <TabsContent value="shipping" forceMount className="h-full">
-                <ScrollContainer className="space-y-5 pb-5" allowScroll>
+              <Section value="shipping">
+                <ScrollContainer className={`space-y-5 ${showAllSections ? "" : "pb-5"}`} allowScroll>
                   <div className="space-y-6 pb-4">
                     <Card className="border-none shadow-sm">
                       <CardHeader className="pb-4">
@@ -1395,15 +1624,30 @@ function ProductFormBase({
                             </div>
                           </div>
                         </div>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="unit-count">Unit Count</Label>
+                            <Input id="unit-count" type="number" min="1" placeholder="1" {...register("unitCount")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="size-ml">Size (ml)</Label>
+                            <Input id="size-ml" type="number" step="0.1" placeholder="0" {...register("sizeMl")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="size-floz">Size (fl oz)</Label>
+                            <Input id="size-floz" type="number" step="0.01" placeholder="0" {...register("sizeFlOz")} />
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
 
               {/* PRICING */}
-              <TabsContent value="pricing" forceMount className="h-full">
-                <ScrollContainer className="space-y-6 pb-4" allowScroll>
+              <Section value="pricing">
+                <ScrollContainer className={`space-y-6 ${showAllSections ? "" : "pb-4"}`} allowScroll>
                   <div className="space-y-6 pb-4">
                     <Card className="border-none shadow-sm">
                       <CardHeader className="pb-4">
@@ -1415,6 +1659,16 @@ function ProductFormBase({
                           <Label htmlFor="product-price">Price</Label>
                           <Input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" {...register("basePrice")} />
                         </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="product-currency">Currency</Label>
+                            <Input id="product-currency" placeholder="INR" {...register("currency")} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="product-original-value">Original Value</Label>
+                            <Input id="product-original-value" type="number" min="0" step="0.01" placeholder="0.00" {...register("originalValue")} />
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="compare-price">Compare at price</Label>
                           <Input id="compare-price" type="number" min="0" step="0.01" placeholder="Optional" {...register("compareAtPrice")} />
@@ -1423,31 +1677,48 @@ function ProductFormBase({
                     </Card>
                   </div>
                 </ScrollContainer>
-              </TabsContent>
+              </Section>
+              </div>
             </div>
           </div>
         </Tabs>
 
-        <div className="mt-2 flex flex-col gap-3 border-t border-border/60 pt-4 md:mt-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={goToPreviousSection} disabled={currentStep <= 0}>
-              Previous
-            </Button>
-            <Button type="button" variant="ghost" onClick={goToNextSection} disabled={currentStep >= SECTIONS.length - 1}>
-              Next
-            </Button>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onClose(false)} disabled={submitting}>
-              Discard
-            </Button>
-            <Button type="button" variant="secondary" disabled={submitting}>
-              Schedule
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : "Add product"}
-            </Button>
-          </div>
+        <div className={`border-t border-border/60 pt-4 ${showAllSections ? "mt-6 flex flex-wrap justify-end gap-2" : "mt-2 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center md:justify-between"}`}>
+          {showAllSections ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => onClose(false)} disabled={submitting}>
+                Discard
+              </Button>
+              <Button type="button" variant="secondary" disabled={submitting}>
+                Schedule
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Add product"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={goToPreviousSection} disabled={currentStep <= 0}>
+                  Previous
+                </Button>
+                <Button type="button" variant="ghost" onClick={goToNextSection} disabled={currentStep >= SECTIONS.length - 1}>
+                  Next
+                </Button>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => onClose(false)} disabled={submitting}>
+                  Discard
+                </Button>
+                <Button type="button" variant="secondary" disabled={submitting}>
+                  Schedule
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Saving..." : "Add product"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </form>
     </div>
@@ -1470,7 +1741,7 @@ function ProductFormBase({
   );
 }
 
-export function ProductDialog({ onClose = () => {}, ...props }) {
+export function ProductDialog({ onClose = () => { }, ...props }) {
   return (
     <ProductFormBase
       {...props}

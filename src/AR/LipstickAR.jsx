@@ -133,6 +133,10 @@ function loadScript(src) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function ensureOne(className, urls) {
   if (window[className]) return true;
   for (const url of urls) {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Search, X, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import productData from "@/data/sampleProduct.json";
+
+const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
 const POPULAR_KEYWORDS = [
     "Matte Lipstick",
@@ -20,6 +21,10 @@ const IMG = import.meta.glob("/src/assets/images/**/*", {
     query: "?url",
     import: "default",
 });
+const FALLBACK_IMAGE =
+    IMG["/src/assets/images/product1.png"] ||
+    Object.values(IMG)[0] ||
+    "";
 function resolveAsset(pth = "") {
     if (!pth) return "";
     let clean = String(pth).split("?")[0].split("#")[0].trim();
@@ -28,15 +33,44 @@ function resolveAsset(pth = "") {
     if (IMG[clean]) return IMG[clean];
     const fname = clean.split("/").pop();
     const kv = Object.entries(IMG).find(([k]) => k.endsWith("/" + fname));
-    return kv ? kv[1] : pth;
+    if (kv) return kv[1];
+    return FALLBACK_IMAGE || pth;
 }
 
 export default function SearchPage() {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [catalog, setCatalog] = useState([]);
+    const [loadingCatalog, setLoadingCatalog] = useState(Boolean(API_BASE));
 
-    // Debounced search simulation
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            if (!API_BASE) {
+                setLoadingCatalog(false);
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/products`);
+                if (!res.ok) throw new Error("Failed to load catalog");
+                const payload = await res.json();
+                if (cancelled) return;
+                const items = Array.isArray(payload) ? payload : payload?.data;
+                if (Array.isArray(items)) setCatalog(items);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (!cancelled) setLoadingCatalog(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Debounced search simulation (client-side filter of API products)
     useEffect(() => {
         if (!query.trim()) {
             setResults([]);
@@ -46,12 +80,19 @@ export default function SearchPage() {
 
         setIsSearching(true);
         const timer = setTimeout(() => {
-            // Simulate search logic (filtering sample product for now)
-            // In a real app, this would be an API call
-            const filtered = [productData].filter(p =>
-                p.title.toLowerCase().includes(query.toLowerCase()) ||
-                p.description.toLowerCase().includes(query.toLowerCase())
-            );
+            const q = query.toLowerCase();
+            const filtered = catalog.filter((p) => {
+                const haystack = [
+                    p.name,
+                    p.description?.headline,
+                    p.description?.body,
+                    ...(Array.isArray(p.tags) ? p.tags : []),
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+                return haystack.includes(q);
+            });
             setResults(filtered);
             setIsSearching(false);
         }, 300);
@@ -96,11 +137,11 @@ export default function SearchPage() {
                                 Popular Searches
                             </div>
                             <div className="flex flex-wrap gap-3">
-                                {POPULAR_KEYWORDS.map((keyword) => (
-                                    <button
-                                        key={keyword}
-                                        onClick={() => setQuery(keyword)}
-                                        className="rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--primary)] transition-all hover:border-[var(--secondary-300)] hover:bg-[var(--secondary-100)] hover:shadow-sm active:scale-95"
+                {POPULAR_KEYWORDS.map((keyword) => (
+                    <button
+                        key={keyword}
+                        onClick={() => setQuery(keyword)}
+                        className="rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--primary)] transition-all hover:border-[var(--secondary-300)] hover:bg-[var(--secondary-100)] hover:shadow-sm active:scale-95"
                                     >
                                         {keyword}
                                     </button>
@@ -133,7 +174,9 @@ export default function SearchPage() {
                 ) : (
                     <div className="space-y-6">
                         <h2 className="text-sm font-medium text-[var(--muted-foreground)]">
-                            {isSearching ? "Searching..." : `Found ${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
+                            {isSearching || loadingCatalog
+                                ? "Searching..."
+                                : `Found ${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
                         </h2>
 
                         {results.length > 0 ? (
@@ -141,28 +184,37 @@ export default function SearchPage() {
                                 {results.map((product) => (
                                     <Link
                                         key={product.id}
-                                        to={`/product/${product.id}`}
+                                        to={`/product/${product.slug || product.id}`}
                                         className="group block space-y-3"
                                     >
                                         <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--secondary-100)]">
                                             {/* Primary Image */}
                                             <img
-                                                src={resolveAsset(product.gallery ? product.gallery[0] : (product.hero?.image || ""))}
-                                                alt={product.title}
+                                                src={resolveAsset(
+                                                    product.media?.gallery?.[0]?.url ||
+                                                    product.media?.gallery?.[0]?.id ||
+                                                    product.media?.heroImage
+                                                )}
+                                                alt={product.name}
                                                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                             />
                                             {/* Secondary Image (Hover) */}
-                                            {product.gallery && product.gallery[1] && (
+                                            {product.media?.gallery?.[1] && (
                                                 <img
-                                                    src={resolveAsset(product.gallery[1])}
-                                                    alt={`${product.title} alternate`}
+                                                    src={resolveAsset(product.media.gallery[1].url || product.media.gallery[1].id)}
+                                                    alt={`${product.name} alternate`}
                                                     className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
                                                 />
                                             )}
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-[var(--primary)] group-hover:underline decoration-1 underline-offset-4">{product.title}</h3>
-                                            <p className="text-sm text-[var(--muted-foreground)]">{product.price}</p>
+                                            <h3 className="font-semibold text-[var(--primary)] group-hover:underline decoration-1 underline-offset-4">
+                                                {product.name}
+                                            </h3>
+                                            <p className="text-sm text-[var(--muted-foreground)]">
+                                                {product.pricing?.currency || product.currency || "INR"}{" "}
+                                                {product.pricing?.price ?? product.price ?? product.basePrice ?? 0}
+                                            </p>
                                         </div>
                                     </Link>
                                 ))}

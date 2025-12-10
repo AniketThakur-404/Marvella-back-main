@@ -29,6 +29,11 @@ export default function ProductEdit() {
   const handleSuccess = () => navigate("/dashboard");
 
   useEffect(() => {
+    document.body.classList.add("dashboard-form-lock");
+    return () => document.body.classList.remove("dashboard-form-lock");
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function loadProduct() {
@@ -64,9 +69,9 @@ export default function ProductEdit() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-svh w-full">
+      <div className="flex h-svh w-full overflow-hidden">
         <AppSidebar />
-        <SidebarInset className="flex min-w-0 flex-1 flex-col bg-[#f5f7fb]">
+        <SidebarInset className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden bg-[#f5f7fb]">
           <div className="sticky top-0 z-20 grid grid-cols-[auto,1fr] items-center gap-2 border-b bg-[#f5f7fb]/80 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[#f5f7fb]/60 md:hidden">
             <SidebarTrigger className="-ml-1" />
             <span className="text-sm font-medium text-primary/80">Menu</span>
@@ -96,7 +101,7 @@ export default function ProductEdit() {
             </div>
           </header>
 
-          <main className="flex flex-1 flex-col overflow-y-auto px-4 pb-10 pt-6 md:px-6">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-0 pt-6 md:px-6">
             {loadingProduct ? (
               <Skeleton className="h-[480px] w-full rounded-3xl" />
             ) : error ? (

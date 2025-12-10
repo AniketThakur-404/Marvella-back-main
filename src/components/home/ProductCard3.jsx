@@ -1,40 +1,62 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Heart, Video, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import image1 from "@/assets/images/product1.png";
-import image2 from "@/assets/images/product2.png";
-import image3 from "@/assets/images/product3.png";
-import image4 from "@/assets/images/product4.png";
-import image5 from "@/assets/images/product5.png";
-import image6 from "@/assets/images/product6.png";
-import image7 from "@/assets/images/product7.png";
-import image8 from "@/assets/images/product8.png";
-import image9 from "@/assets/images/product9.png";
-import image10 from "@/assets/images/product10.png";
-import image11 from "@/assets/images/product11.png";
-import image12 from "@/assets/images/product12.png";
 import bg from "@/assets/background/card-bg.svg";
+import { useProductsCatalog } from "@/hooks/useProductsCatalog";
 
-const products = [
-  { id: 1, image: image1, name: "Cevonne - Satin Lipstick" },
-  { id: 2, image: image2, name: "Cevonne - Satin Lipstick" },
-  { id: 3, image: image3, name: "Cevonne - Satin Lipstick" },
-  { id: 4, image: image4, name: "Cevonne - Satin Lipstick" },
-  { id: 5, image: image5, name: "Cevonne - Satin Lipstick" },
-  { id: 6, image: image6, name: "Cevonne - Satin Lipstick" },
-  { id: 7, image: image7, name: "Cevonne - Satin Lipstick" },
-  { id: 8, image: image8, name: "Cevonne - Satin Lipstick" },
-  { id: 9, image: image9, name: "Cevonne - Satin Lipstick" },
-  { id: 10, image: image10, name: "Cevonne - Satin Lipstick" },
-  { id: 11, image: image11, name: "Cevonne - Satin Lipstick" },
-  { id: 12, image: image12, name: "Cevonne - Satin Lipstick" },
-];
+const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
+
+const IMG = import.meta.glob("/src/assets/images/**/*", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+const FALLBACK_IMAGE =
+  IMG["/src/assets/images/product1.png"] ||
+  Object.values(IMG)[0] ||
+  "";
+const resolveAsset = (pth = "") => {
+  if (!pth) return FALLBACK_IMAGE;
+  const clean = String(pth).trim();
+  if (clean.startsWith("http")) return clean;
+  const normalized = clean.startsWith("/src/") ? clean : `/src/assets/images/${clean.replace(/^\/+/, "")}`;
+  if (IMG[normalized]) return IMG[normalized];
+  const fname = normalized.split("/").pop();
+  const kv = Object.entries(IMG).find(([k]) => k.endsWith("/" + fname));
+  if (kv) return kv[1];
+  return FALLBACK_IMAGE;
+};
+
+const mapProduct = (product) => {
+  if (!product) return null;
+  const galleryItems = Array.isArray(product.media?.gallery) ? product.media.gallery : [];
+  const hero =
+    product.media?.heroImage ||
+    galleryItems.find((g) => g.role === "hero")?.url ||
+    galleryItems.find((g) => g.role === "hero")?.id ||
+    galleryItems[0]?.url ||
+    galleryItems[0]?.id ||
+    product.images?.[0]?.url ||
+    "";
+  return {
+    id: product.slug || product.id,
+    image: resolveAsset(hero),
+    name: product.name,
+  };
+};
 
 const INITIAL_VISIBLE = 4;
 
 const ProductCard3 = () => {
   const [expanded, setExpanded] = useState(false);
+  const { products: list, loading } = useProductsCatalog();
+
+  const products = useMemo(
+    () => (Array.isArray(list) ? list.map(mapProduct).filter(Boolean) : []),
+    [list]
+  );
+
   const visible = expanded ? products : products.slice(0, INITIAL_VISIBLE);
   const remaining = Math.max(products.length - INITIAL_VISIBLE, 0);
 
@@ -141,6 +163,11 @@ const ProductCard3 = () => {
           >
             {expanded ? "View Less" : remaining > 0 ? `View More (${remaining})` : "View More"}
           </button>
+        </div>
+      )}
+      {!products.length && !loading && (
+        <div className="mt-6 text-center text-sm text-neutral-500">
+          No products available.
         </div>
       )}
     </section>

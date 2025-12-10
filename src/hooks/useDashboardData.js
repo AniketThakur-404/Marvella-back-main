@@ -17,6 +17,7 @@ const emptyState = {
     publishedCount: 0,
     pendingCount: 0,
   },
+  orders: [],
 };
 
 const defaultRequest = (url, options) => fetch(url, options);
@@ -57,6 +58,16 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
           }
         };
 
+        let localOrders = [];
+        try {
+          // Lazy import to avoid SSR warnings
+          const { readOrders } = await import("@/lib/orderStorage.js");
+          localOrders = readOrders();
+        } catch (err) {
+          console.warn("Could not load local orders", err);
+          localOrders = [];
+        }
+
         const fetchJson = async (path, fallback = null) => {
           try {
             const response = await request(`${API_BASE}${path}`);
@@ -95,6 +106,7 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
             typeof allReviews?.meta === "object"
               ? { ...emptyState.reviewMeta, ...allReviews.meta }
               : { ...emptyState.reviewMeta };
+          const orders = Array.isArray(localOrders) ? localOrders : [];
           setData({
             products,
             shades,
@@ -104,6 +116,7 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
             lowInventory,
             reviews: reviewsItems,
             reviewMeta,
+            orders,
           });
         }
       } catch (err) {
@@ -126,14 +139,25 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
   }, [request, enabled, version]);
 
   const stats = useMemo(() => {
+    const shades = Array.isArray(data.shades) ? data.shades : [];
+    const arShadeCount = shades.filter((shade) => shade?.arAssetUrl).length;
     const totalInventory = Array.isArray(data.inventory)
       ? data.inventory.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0)
       : 0;
     const reviewSummary = data.reviewMeta ?? emptyState.reviewMeta;
+    const orders = Array.isArray(data.orders) ? data.orders : [];
+    const orderRevenue = orders.reduce(
+      (acc, order) => acc + (Number(order?.totals?.total) || 0),
+      0
+    );
+    const pendingOrders = orders.filter(
+      (order) => (order.status || "pending") !== "fulfilled"
+    ).length;
 
     return {
       productCount: Array.isArray(data.products) ? data.products.length : 0,
-      shadeCount: Array.isArray(data.shades) ? data.shades.length : 0,
+      shadeCount: shades.length,
+      arShadeCount,
       collectionCount: Array.isArray(data.collections) ? data.collections.length : 0,
       userCount: Array.isArray(data.users) ? data.users.length : 0,
       totalInventory,
@@ -141,6 +165,9 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
       reviewCount: reviewSummary.publishedCount ?? 0,
       pendingReviewCount: reviewSummary.pendingCount ?? 0,
       averageRating: reviewSummary.averageRating ?? 0,
+      orderCount: orders.length,
+      pendingOrders,
+      orderRevenue,
     };
   }, [data]);
   const refresh = () => setVersion((prev) => prev + 1);

@@ -30,6 +30,15 @@ body.ar-no-scroll {
   touch-action: none;
 }
 
+/* Lock body scrolling on dashboard forms; rely on inner pane scroll instead */
+body.dashboard-form-lock {
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* debug outline for overflow detection (remove when done) */
 .debug-outline * {
   outline: 1px solid rgba(255,0,0,0.04);

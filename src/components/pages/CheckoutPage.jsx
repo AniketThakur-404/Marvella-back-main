@@ -1,8 +1,11 @@
-import React from "react"
-import { Link } from "react-router-dom"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { useShop } from "@/context/ShopContext"
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useShop } from "@/context/ShopContext";
+import { addOrder, generateOrderNumber } from "@/lib/orderStorage.js";
 
 const shippingFields = [
   { label: "Full name", name: "fullName", placeholder: "Priya Kapoor" },
@@ -16,7 +19,7 @@ const shippingFields = [
   },
   { label: "City / Town", name: "city", placeholder: "Mumbai" },
   { label: "Postal code", name: "postalCode", placeholder: "400001" },
-]
+];
 
 const paymentOptions = [
   {
@@ -34,27 +37,97 @@ const paymentOptions = [
     description: "Pay when we handover your parcel at the door.",
     value: "cod",
   },
-]
+];
 
-const formatMoney = (value) =>
-  Number.isFinite(value) ? value.toLocaleString("en-IN") : "0"
+const formatMoney = (value) => (Number.isFinite(value) ? value.toLocaleString("en-IN") : "0");
 
 export default function CheckoutPage() {
-  const { cartItems } = useShop()
-  const subtotal = cartItems.reduce((sum, item) => {
-    const value = Number(item.price)
-    return sum + (Number.isFinite(value) ? value : 0)
-  }, 0)
-  const currencySymbol = cartItems[0]?.currency || "₹"
-  const shippingFee = cartItems.length ? 149 : 0
-  const total = subtotal + shippingFee
+  const { cartItems, clearCart } = useShop();
+  const [shippingData, setShippingData] = useState(
+    shippingFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {})
+  );
+  const [paymentMethod, setPaymentMethod] = useState(paymentOptions[0].value);
+  const [placing, setPlacing] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+
+  const currencySymbol = cartItems[0]?.currency || "₹";
+  const subtotal = useMemo(
+    () =>
+      cartItems.reduce((sum, item) => {
+        const value = Number(item.price);
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0),
+    [cartItems]
+  );
+  const shippingFee = cartItems.length ? 149 : 0;
+  const total = subtotal + shippingFee;
+
+  const handleFieldChange = (event) => {
+    const { name, value } = event.target;
+    setShippingData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePlaceOrder = (event) => {
+    event.preventDefault();
+    if (placing) return;
+    if (!cartItems.length) {
+      toast.error("Add at least one item to place an order.");
+      return;
+    }
+    const missing = shippingFields.filter((field) => !shippingData[field.name]?.trim());
+    if (missing.length) {
+      toast.error(`Please fill ${missing[0].label.toLowerCase()}.`);
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      const number = generateOrderNumber();
+      const order = {
+        id: number,
+        number,
+        status: "pending",
+        paymentMethod,
+        totals: { subtotal, shippingFee, total },
+        shipping: shippingData,
+        items: cartItems.map((item) => ({
+          id: item.id || item.key,
+          name: item.name,
+          price: Number(item.price) || 0,
+          currency: item.currency || currencySymbol,
+          quantity: item.quantity || 1,
+        })),
+        customer: {
+          name: shippingData.fullName,
+          email: shippingData.email,
+          phone: shippingData.phone,
+        },
+        createdAt: new Date().toISOString(),
+      };
+      addOrder(order);
+      setOrderId(number);
+      clearCart();
+      toast.success(`Order ${number} saved for dashboard review.`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard:data:refresh"));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to save the order. Please retry.");
+    } finally {
+      setPlacing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--accent)] text-[var(--primary)]">
       <div className="w-full px-4 pt-24 pb-10 lg:pt-32 lg:pb-16">
         <header className="mb-8 space-y-2">
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="border-[var(--secondary-300)] text-[var(--secondary-foreground)] uppercase tracking-widest">
+            <Badge
+              variant="outline"
+              className="border-[var(--secondary-300)] text-[var(--secondary-foreground)] uppercase tracking-widest"
+            >
               Secure Checkout
             </Badge>
           </div>
@@ -64,12 +137,12 @@ export default function CheckoutPage() {
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+        <form className="grid gap-8 lg:grid-cols-[1fr_380px]" onSubmit={handlePlaceOrder}>
           <section className="space-y-8">
             {/* Shipping Details */}
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
               <h2 className="mb-6 text-lg font-semibold text-[var(--primary)]">Shipping Details</h2>
-              <form className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 {shippingFields.map((field) => (
                   <div
                     key={field.name}
@@ -82,11 +155,13 @@ export default function CheckoutPage() {
                       type={field.type || "text"}
                       name={field.name}
                       placeholder={field.placeholder}
+                      value={shippingData[field.name] || ""}
+                      onChange={handleFieldChange}
                       className="w-full rounded-lg border border-[var(--border)] bg-[var(--accent)] px-4 py-2.5 text-sm text-[var(--primary)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:bg-[var(--card)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] transition-all"
                     />
                   </div>
                 ))}
-              </form>
+              </div>
             </div>
 
             {/* Payment Method */}
@@ -102,7 +177,8 @@ export default function CheckoutPage() {
                       type="radio"
                       name="payment"
                       value={option.value}
-                      defaultChecked={option.value === "card"}
+                      checked={paymentMethod === option.value}
+                      onChange={() => setPaymentMethod(option.value)}
                       className="mt-1 h-4 w-4 border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]"
                     />
                     <div className="space-y-1">
@@ -122,10 +198,8 @@ export default function CheckoutPage() {
             <ul className="space-y-3 border-b border-[var(--border)] pb-4">
               {cartItems.length ? (
                 cartItems.map((item) => {
-                  const itemPrice = Number(item.price)
-                  const priceLabel = Number.isFinite(itemPrice)
-                    ? formatMoney(itemPrice)
-                    : "0"
+                  const itemPrice = Number(item.price);
+                  const priceLabel = Number.isFinite(itemPrice) ? formatMoney(itemPrice) : "0";
                   return (
                     <li key={item.key} className="flex items-center justify-between text-sm">
                       <span className="font-medium text-[var(--muted-foreground)]">{item.name}</span>
@@ -134,35 +208,54 @@ export default function CheckoutPage() {
                         {priceLabel}
                       </span>
                     </li>
-                  )
+                  );
                 })
               ) : (
-                <li className="text-sm text-[var(--muted-foreground)] italic">
-                  Your cart is empty.
-                </li>
+                <li className="text-sm text-[var(--muted-foreground)] italic">Your cart is empty.</li>
               )}
             </ul>
 
             <div className="space-y-2 text-sm text-[var(--muted-foreground)]">
               <div className="flex items-center justify-between">
                 <span>Subtotal</span>
-                <span>{currencySymbol}{formatMoney(subtotal)}</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(subtotal)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Shipping</span>
-                <span>{currencySymbol}{formatMoney(shippingFee)}</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(shippingFee)}
+                </span>
               </div>
               <div className="border-t border-[var(--border)] pt-4 flex items-center justify-between text-base font-bold text-[var(--primary)]">
                 <span>Total</span>
-                <span>{currencySymbol}{formatMoney(total)}</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(total)}
+                </span>
               </div>
             </div>
 
             <div className="space-y-3 pt-2">
-              <Button className="w-full rounded-full bg-[var(--primary)] py-6 text-sm font-bold uppercase tracking-widest text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary)]/20 hover:bg-[var(--primary-700)] hover:shadow-xl transition-all">
-                Place Order
+              {orderId ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">
+                  Order <strong>{orderId}</strong> saved. View it in the dashboard orders panel.
+                </div>
+              ) : null}
+              <Button
+                type="submit"
+                disabled={placing}
+                className="w-full rounded-full bg-[var(--primary)] py-6 text-sm font-bold uppercase tracking-widest text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary)]/20 hover:bg-[var(--primary-700)] hover:shadow-xl transition-all disabled:opacity-70"
+              >
+                {placing ? "Saving..." : "Place Order"}
               </Button>
-              <Link to="/cart" className="block text-center text-xs font-medium uppercase tracking-widest text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:underline">
+              <Link
+                to="/cart"
+                className="block text-center text-xs font-medium uppercase tracking-widest text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:underline"
+              >
                 Back to cart
               </Link>
             </div>
@@ -171,8 +264,8 @@ export default function CheckoutPage() {
               By placing an order, you agree to our terms & conditions.
             </p>
           </section>
-        </div>
+        </form>
       </div>
     </div>
-  )
+  );
 }

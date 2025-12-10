@@ -2,12 +2,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import {
-  Star, StarHalf, Truck, ShieldCheck, Recycle, Sparkles,
+  Star, StarHalf, Truck, ShieldCheck, Recycle, Sparkles, X,
   ShoppingCart, Heart, Share2, BadgeCheck, ChevronLeft, ChevronRight,
   ThumbsUp, MessageSquare, CheckCircle2, Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import productData from "@/data/sampleProduct.json";
 import VideoHero from "@/components/media/VideoHero";
 import introVideoFallback from "@/assets/video/intro1.mp4";
 import {
@@ -24,6 +23,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useShop } from "@/context/ShopContext";
+const BASE_PRODUCT = {};
+const BASE_GALLERY = [];
+const findSampleProduct = () => null;
 
 const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
@@ -33,6 +35,10 @@ const IMG = import.meta.glob("/src/assets/images/**/*", {
   query: "?url",
   import: "default",
 });
+const FALLBACK_IMAGE =
+  IMG["/src/assets/images/product1.png"] ||
+  Object.values(IMG)[0] ||
+  "";
 function resolveAsset(pth = "") {
   if (!pth) return "";
   let clean = String(pth).split("?")[0].split("#")[0].trim();
@@ -41,7 +47,8 @@ function resolveAsset(pth = "") {
   if (IMG[clean]) return IMG[clean];
   const fname = clean.split("/").pop();
   const kv = Object.entries(IMG).find(([k]) => k.endsWith("/" + fname));
-  return kv ? kv[1] : pth;
+  if (kv) return kv[1];
+  return FALLBACK_IMAGE || pth;
 }
 
 /* ---------- Media resolver (videos) ---------- */
@@ -202,87 +209,156 @@ const cleanList = (value, fallback = []) => {
   return fallback;
 };
 
-const normalizeShades = (sourceShades = [], experienceShades = [], gallery = []) => {
+const normalizeShades = (sourceShades = [], experienceShades = [], gallery = [], source = {}) => {
   const preferred = Array.isArray(experienceShades) ? experienceShades : [];
   if (preferred.length) return preferred;
-  if (!Array.isArray(sourceShades)) return productData.shades;
 
-  const mapped = sourceShades.map((shade, index) => ({
-    key: shade.key ?? shade.id ?? shade.sku ?? `shade-${index + 1}`,
-    name: shade.name ?? `Shade ${index + 1}`,
-    hex: shade.hex ?? shade.hexColor ?? "#a21caf",
-    thumb: shade.thumb ?? shade.image ?? shade.url ?? gallery[index],
-    desc: shade.desc ?? shade.description ?? "",
-  }));
-  return mapped.length ? mapped : productData.shades;
+  let mapped = [];
+  if (Array.isArray(sourceShades) && sourceShades.length > 0) {
+    mapped = sourceShades.map((shade, index) => ({
+      key: shade.key ?? shade.id ?? shade.sku ?? `shade-${index + 1}`,
+      name: shade.name ?? `Shade ${index + 1}`,
+      hex: shade.hex ?? shade.hexColor ?? "#a21caf",
+      thumb: shade.thumb ?? shade.image ?? shade.url ?? gallery[index],
+      desc: shade.desc ?? shade.description ?? "",
+    }));
+  } else if (source.type === 'single' || !sourceShades?.length) {
+    // Create a single default shade for single products
+    mapped = [{
+      key: source.slug ?? source.id ?? 'default',
+      name: source.name ?? 'Standard',
+      hex: '#000000',
+      thumb: source.media?.heroImage ?? gallery[0],
+      desc: source.description?.body ?? "",
+    }];
+  }
+
+  return mapped;
 };
 
 const buildProductView = (source = {}) => {
   const experience = source.experience ?? {};
+
+  // New schema objects
+  const pricing = source.pricing || {};
+  const media = source.media || {};
+  const desc = source.description || {};
+  const ingredientsData = source.ingredients || {};
+  const basePricing = BASE_PRODUCT.pricing || {};
+
   const galleryFromImages = Array.isArray(source.images)
-    ? source.images.map((img) => img.url).filter(Boolean)
+    ? source.images.map((img) => img.url || img.id || img.src).filter(Boolean)
     : [];
 
   const pickGallery = (candidate) =>
     Array.isArray(candidate) && candidate.length ? candidate : null;
+
   const gallery =
+    (media.gallery ? media.gallery.map(g => g.url || g.id) : null) ??
     pickGallery(experience.gallery) ??
     pickGallery(source.gallery) ??
     pickGallery(galleryFromImages) ??
-    productData.gallery;
+    BASE_GALLERY;
+
   const theme = {
-    ...productData.theme,
+    ...BASE_PRODUCT.theme,
     ...(source.theme || {}),
     ...(experience.theme || {}),
   };
   const hero = {
-    ...productData.hero,
+    ...BASE_PRODUCT.hero,
     ...(source.hero || {}),
     ...(experience.hero || {}),
+    image: media.heroImage ?? source.hero?.image ?? experience.hero?.image ?? BASE_PRODUCT.media?.heroImage
   };
 
-  const badges = cleanList(experience.badges ?? source.badges, productData.badges);
-  const benefits = cleanList(experience.benefits ?? source.benefits, productData.benefits);
-  const ingredients =
-    experience.ingredientsHighlight ?? experience.ingredients_highlight ?? source.ingredients_highlight ??
-    productData.ingredients_highlight;
-  const howToUse = cleanList(
-    experience.howToUse ?? experience.how_to_use ?? source.how_to_use,
-    productData.how_to_use
+  const badges = cleanList(
+    source.badges?.map(b => b.label ?? b) ?? experience.badges ?? source.badges,
+    BASE_PRODUCT.badges || []
   );
-  const claims = cleanList(experience.claims ?? source.claims, productData.claims);
+  const benefits = cleanList(experience.benefits ?? source.benefits, BASE_PRODUCT.benefits || []);
+
+  const ingredients =
+    ingredientsData.keyActives
+      ? ingredientsData.keyActives.map(k => ({ name: k.name, why: k.description }))
+      : (experience.ingredientsHighlight ?? experience.ingredients_highlight ?? source.ingredients_highlight ?? BASE_PRODUCT.ingredients_highlight ?? []);
+
+  const supportingIngredients =
+    Array.isArray(ingredientsData.supportingIngredients)
+      ? ingredientsData.supportingIngredients
+      : Array.isArray(source.ingredients_supporting)
+        ? source.ingredients_supporting
+        : Array.isArray(experience.ingredients_supporting)
+          ? experience.ingredients_supporting
+          : [];
+
+  const ingredientsNote = ingredientsData.note ?? source.ingredientsNote ?? experience.ingredientsNote ?? "";
+
+  const howToUse = cleanList(
+    experience.howToUse ?? experience.how_to_use ?? source.how_to_use ?? source.howToUse,
+    BASE_PRODUCT.how_to_use || []
+  );
+  const claims = cleanList(experience.claims ?? source.claims, BASE_PRODUCT.claims || []);
   const faqs = Array.isArray(experience.faqs ?? source.faqs)
     ? experience.faqs ?? source.faqs
-    : productData.faqs;
+    : BASE_PRODUCT.faqs || [];
+  const tags = Array.isArray(source.tags) ? source.tags : [];
+  const brand = source.brand ?? BASE_PRODUCT.brand;
+  const productType = source.type ?? source.productType ?? BASE_PRODUCT.productType;
+
+  const reviewsList = Array.isArray(source?.reviewsList)
+    ? source.reviewsList
+    : Array.isArray(source?.reviews)
+      ? source.reviews
+      : [];
+  const reviewCount = Array.isArray(source?.reviews)
+    ? source.reviews.length
+    : (experience.reviewCount ?? source.reviewCount ?? source.reviews ?? BASE_PRODUCT.reviews);
 
   return {
-    ...productData,
+    ...BASE_PRODUCT,
     ...source,
     ...experience,
-    title: source.title ?? source.name ?? experience.title ?? productData.title,
-    name: source.name ?? experience.name ?? productData.title,
-    subtitle: experience.subtitle ?? source.subtitle ?? productData.subtitle,
-    categoryPath: experience.categoryPath ?? source.categoryPath ?? productData.categoryPath,
+    title: source.name ?? experience.title ?? source.title ?? BASE_PRODUCT.title ?? BASE_PRODUCT.name,
+    name: source.name ?? experience.name ?? BASE_PRODUCT.title ?? BASE_PRODUCT.name,
+    subtitle: desc.headline ?? experience.subtitle ?? source.subtitle ?? BASE_PRODUCT.subtitle ?? BASE_PRODUCT.description?.headline,
+    categoryPath: experience.categoryPath ?? source.categoryPath ?? BASE_PRODUCT.categoryPath,
     longDescription:
-      experience.longDescription ?? source.longDescription ?? source.description ?? productData.longDescription,
+      desc.body ?? experience.longDescription ?? source.longDescription ?? source.description ?? BASE_PRODUCT.longDescription ?? BASE_PRODUCT.description?.body,
     hero,
     theme,
     gallery,
     badges,
     benefits,
     ingredients_highlight: ingredients,
+    ingredients_supporting: supportingIngredients,
+    ingredientsNote,
     how_to_use: howToUse,
     claims,
     faqs,
-    shipping: experience.shipping ?? source.shipping ?? productData.shipping,
-    returns: experience.returns ?? source.returns ?? productData.returns,
-    reviews: experience.reviewCount ?? source.reviewCount ?? source.reviews ?? productData.reviews,
+    tags,
+    brand,
+    productType,
+    shipping: experience.shipping ?? source.shipping ?? BASE_PRODUCT.shipping,
+    returns: experience.returns ?? source.returns ?? BASE_PRODUCT.returns,
+    reviews: Number.isFinite(reviewCount) ? reviewCount : Number(reviewCount) || 0,
     rating:
-      experience.rating ?? source.averageRating ?? source.rating ?? productData.rating ?? productData.averageRating,
-    mrp: source.mrp ?? source.compareAtPrice ?? productData.mrp ?? productData.price,
-    price: source.price ?? source.basePrice ?? productData.price,
-    videoUrl: experience.videoUrl ?? source.videoUrl ?? productData.videoUrl,
-    shades: normalizeShades(source.shades, experience.shades, gallery),
+      Number.isFinite(experience.rating) ? experience.rating
+        : Number.isFinite(source.averageRating) ? source.averageRating
+          : Number.isFinite(source.rating) ? source.rating
+            : Number(BASE_PRODUCT.rating ?? BASE_PRODUCT.averageRating ?? 0) || 0,
+    mrp: pricing.originalValue ?? source.mrp ?? source.compareAtPrice ?? basePricing.originalValue ?? BASE_PRODUCT.mrp ?? BASE_PRODUCT.price,
+    price: pricing.price ?? source.price ?? source.basePrice ?? basePricing.price ?? BASE_PRODUCT.price,
+    currency: pricing.currency ?? source.currency ?? basePricing.currency ?? BASE_PRODUCT.currency ?? "₹",
+    reviewsList,
+    finish: source?.finish ?? BASE_PRODUCT.finish ?? "soft-matte",
+    coverage: source?.coverage ?? BASE_PRODUCT.coverage ?? "full-pigment",
+    fragrance: source?.fragrance ?? BASE_PRODUCT.fragrance ?? "Fragrance-free",
+    videoTitle: experience.videoTitle ?? BASE_PRODUCT.experience?.videoTitle ?? "Cevonne",
+    videoDescription: experience.videoDescription ?? BASE_PRODUCT.experience?.videoDescription ?? "Velvet matte color and intense longwear adorn lips with immediate moisture and rich tones in 28 irresistible shades.",
+    ingredientsTitle: experience.ingredientsTitle ?? BASE_PRODUCT.experience?.ingredientsTitle ?? "Powered by Science",
+    videoUrl: experience.videoUrl ?? source.videoUrl ?? BASE_PRODUCT.videoUrl,
+    shades: normalizeShades(source.shades, experience.shades, gallery, source),
   };
 };
 
@@ -352,10 +428,29 @@ export default function ProductDetails({ data }) {
     };
   }, [id, API_BASE]);
 
-  const sourceProduct = remoteProduct || preloadedProduct || productData;
+  const fallbackProduct = findSampleProduct(id) || BASE_PRODUCT;
+  const sourceProduct = remoteProduct || preloadedProduct || fallbackProduct;
   const p = useMemo(() => buildProductView(sourceProduct), [sourceProduct]);
   const crumbs = Array.isArray(p.categoryPath) ? p.categoryPath : p.category ? [p.category] : [];
   const { cartItems, wishlist, addToCart, toggleWishlist, openDrawer } = useShop();
+
+  if (loadingProduct && !sourceProduct) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-neutral-500">
+        Loading product...
+      </div>
+    );
+  }
+
+  if (!sourceProduct) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-center text-neutral-600 px-4">
+        <p className="text-lg font-semibold text-neutral-800">Product not found</p>
+        <p className="text-sm text-neutral-500">Try reloading or go back to browse other products.</p>
+        <Link to="/" className="text-primary underline">Back to home</Link>
+      </div>
+    );
+  }
 
   /* Tone & backgrounds */
   const WHITE_BG = "#ffffff";
@@ -512,6 +607,28 @@ export default function ProductDetails({ data }) {
     return { save, hasSave: save > 0 };
   }, [p.mrp, p.price]);
 
+  /* ingredients view toggle */
+  const [showFullIngredients, setShowFullIngredients] = useState(false);
+  useEffect(() => {
+    setShowFullIngredients(false);
+  }, [sourceProduct]);
+  const primaryIngredient = useMemo(
+    () => (Array.isArray(p.ingredients_highlight) ? p.ingredients_highlight[0] : null),
+    [p.ingredients_highlight]
+  );
+  const otherIngredientNames = useMemo(
+    () =>
+      (Array.isArray(p.ingredients_highlight) ? p.ingredients_highlight.slice(1) : [])
+        .map((it) => it?.name)
+        .filter(Boolean),
+    [p.ingredients_highlight]
+  );
+  const fullIngredientsText = useMemo(() => {
+    if (Array.isArray(p.ingredients_supporting)) return p.ingredients_supporting.join(", ");
+    if (typeof p.ingredients_supporting === "string") return p.ingredients_supporting;
+    return "";
+  }, [p.ingredients_supporting]);
+
   /* shades map + choose */
   const [activeShade, setActiveShade] = useState(p.shades?.[0]?.key || "");
   const [showTooltip, setShowTooltip] = useState(true);
@@ -588,7 +705,8 @@ export default function ProductDetails({ data }) {
   const [sortOrder, setSortOrder] = useState("newest");
   const [filterRating, setFilterRating] = useState(0);
   const filteredAndSortedReviews = useMemo(() => {
-    let reviews = [...(p.reviewsList || [])];
+    const baseReviews = Array.isArray(p.reviewsList) ? p.reviewsList : [];
+    let reviews = [...baseReviews];
     if (filterRating > 0) reviews = reviews.filter((r) => r.rating === filterRating);
     switch (sortOrder) {
       case "newest": reviews.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
@@ -602,9 +720,16 @@ export default function ProductDetails({ data }) {
 
   const ratingDistribution = useMemo(() => {
     const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    const total = p.reviewsList?.length || 0;
-    if (!total) return dist;
-    p.reviewsList.forEach((r) => {
+    const reviewList = Array.isArray(p.reviewsList) ? p.reviewsList : [];
+    const total = reviewList.length;
+    if (!total) {
+      return Object.keys(dist).sort((a, b) => b - a).map(stars => ({
+        stars,
+        count: 0,
+        percent: 0
+      }));
+    }
+    reviewList.forEach((r) => {
       const floored = Math.floor(r.rating);
       if (dist[floored] !== undefined) dist[floored]++;
     });
@@ -815,8 +940,8 @@ export default function ProductDetails({ data }) {
                 <div className="flex flex-wrap items-center gap-3 text-[var(--fg-muted)] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
                   <RatingStars value={p.rating} />
                   <span className="text-sm font-medium">({p.rating}) · {p.reviews} reviews</span>
-                  <Badge variant="outline" className="ml-2 bg-[var(--chip-bg)] border-transparent text-[var(--fg)] px-3 py-1">
-                    <BadgeCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> Cevonne Verified
+                  <Badge variant="outline" className="ml-2 inline-flex items-center bg-[var(--chip-bg)] border-transparent text-[var(--fg)] px-2.5 py-0.5 h-6">
+                    <BadgeCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> <span className="translate-y-[1px]">Cevonne Verified</span>
                   </Badge>
                 </div>
               </header>
@@ -832,9 +957,49 @@ export default function ProductDetails({ data }) {
 
               {!!p.badges?.length && (
                 <div className="flex flex-wrap gap-2">
-                  {p.badges.map((b) => (
-                    <Badge key={b} variant="secondary" className="bg-[var(--chip-bg)] text-[var(--fg)] border-transparent">{b}</Badge>
+                  {p.badges.map((b, i) => (
+                    <Badge key={i} variant="secondary" className="bg-[var(--chip-bg)] text-[var(--fg)] border-transparent">
+                      {typeof b === 'object' ? b.label : b}
+                    </Badge>
                   ))}
+                </div>
+              )}
+
+              {(p.subtitle || p.longDescription) && (
+                <div className="space-y-2">
+                  <h3 className="text-base font-semibold text-[var(--fg)]">Description</h3>
+                  <p className="text-sm leading-relaxed text-[var(--fg-muted)] whitespace-pre-line">
+                    {p.subtitle ? `${p.subtitle}\n` : ""}
+                    {p.longDescription}
+                  </p>
+                </div>
+              )}
+
+              {(p.size?.unitCount || p.size?.sizePerUnit) && (
+                <div className="text-sm text-[var(--fg-muted)]">
+                  <span className="font-semibold text-[var(--fg)]">Size:</span>{" "}
+                  {p.size?.unitCount ? `${p.size.unitCount} unit` : ""}
+                  {p.size?.sizePerUnit
+                    ? ` (${p.size.sizePerUnit.ml ?? 0} ml / ${p.size.sizePerUnit.flOz ?? 0} fl oz)`
+                    : ""}
+                </div>
+              )}
+
+              {(p.brand || p.type || (p.tags && p.tags.length)) && (
+                <div className="rounded-2xl border border-[var(--divider)] bg-[var(--card-bg)] p-4 space-y-3">
+                  <div className="flex flex-wrap gap-2 items-center text-sm text-[var(--fg-muted)]">
+                    {p.brand && <Badge variant="outline" className="border-[var(--divider)] text-[var(--fg)]">Brand: {p.brand}</Badge>}
+                    {p.type && <Badge variant="outline" className="border-[var(--divider)] text-[var(--fg)]">Type: {p.type}</Badge>}
+                  </div>
+                  {Array.isArray(p.tags) && p.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {p.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="bg-[var(--chip-bg)] text-[var(--fg)] border-transparent">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -854,7 +1019,7 @@ export default function ProductDetails({ data }) {
                         <div key={s.key} className="group relative">
                           <button
                             onClick={() => setActiveShade(s.key)}
-                            className={`relative h-12 w-12 rounded-full transition-all duration-300 ${isActive
+                            className={`relative h-9 w-9 rounded-full transition-all duration-300 ${isActive
                               ? "ring-2 ring-offset-2 ring-black scale-110 shadow-md"
                               : "hover:scale-110 hover:shadow-sm ring-1 ring-black/5"
                               }`}
@@ -958,10 +1123,19 @@ export default function ProductDetails({ data }) {
                 </div>
               </section>
 
-              <section className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs mt-4">
-                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Truck className="h-4 w-4" /> {p.shipping}</div>
-                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><ShieldCheck className="h-4 w-4" /> Secure payments</div>
-                <div className="flex items-center gap-2 border p-2.5 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)]"><Recycle className="h-4 w-4" /> Easy Returns</div>
+              <section className="grid grid-cols-3 gap-3 text-xs mt-6">
+                <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
+                  <Truck className="h-5 w-5 text-[var(--fg-muted)]" />
+                  <span>{p.shipping}</span>
+                </div>
+                <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
+                  <ShieldCheck className="h-5 w-5 text-[var(--fg-muted)]" />
+                  <span>Secure payments</span>
+                </div>
+                <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
+                  <Recycle className="h-5 w-5 text-[var(--fg-muted)]" />
+                  <span>Easy Returns</span>
+                </div>
               </section>
 
               <Separator className="bg-[var(--divider)]" />
@@ -1019,7 +1193,7 @@ export default function ProductDetails({ data }) {
                   </TabsList>
                   <TabsContent value="details" className="mt-4 text-[var(--fg-muted)]">
                     <p className="text-[var(--fg)]">{p.subtitle}</p>
-                    <p>Finish: soft-matte • Coverage: full-pigment • Fragrance-free.</p>
+                    <p>Finish: {p.finish} • Coverage: {p.coverage} • Fragrance: {p.fragrance}.</p>
                   </TabsContent>
                   <TabsContent value="claims" className="mt-4 text-[var(--fg-muted)]">
                     <ul className="list-disc pl-5 space-y-1">{p.claims?.map((c, i) => (<li key={i}>{c}</li>))}</ul>
@@ -1042,37 +1216,87 @@ export default function ProductDetails({ data }) {
         </div>
 
         {/* ===== INGREDIENTS ===== */}
-        <section className="w-full px-4 sm:px-6 lg:px-12 py-16 md:py-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-20" data-bg-key="ingredients">
-          <div className="w-full lg:w-1/2 order-2 lg:order-1">
-            <h3 className="text-3xl md:text-4xl font-bold mb-8 text-[var(--fg)]">Powered by Science</h3>
-            <div className="grid gap-4">
-              {p.ingredients_highlight?.map((it, i) => (
-                <div
-                  key={i}
-                  className="group p-6 border border-[var(--divider)] bg-[var(--card-bg)] backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:border-[var(--fg-muted)] hover:-translate-y-1"
+        <section className="w-full px-4 sm:px-6 lg:px-12 py-16 md:py-24" data-bg-key="ingredients">
+          <div className="overflow-hidden rounded-[22px] border border-[var(--divider)] shadow-md bg-white">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
+              {/* Left panel */}
+              <div className="relative bg-[#fdf8ef] px-6 sm:px-10 py-12 sm:py-14 flex flex-col justify-center">
+                <span
+                  className="absolute left-3 top-4 text-[11px] font-semibold tracking-[0.32em] text-neutral-500 hidden sm:block"
+                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-full bg-[var(--chip-bg)] group-hover:bg-[var(--fg)] group-hover:text-[var(--card-bg)] transition-colors">
-                      <Sparkles className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-bold text-[var(--fg)] mb-1">{it.name}</h4>
-                      <p className="text-[var(--fg-muted)] leading-relaxed">{it.why}</p>
-                    </div>
+                  what's inside
+                </span>
+
+                <div className="space-y-6 pr-3 sm:pr-8">
+                  <p className="text-sm leading-relaxed text-neutral-700 max-w-2xl">
+                    {p.subtitle ||
+                      p.longDescription ||
+                      "Peptides are our go-to skincare ingredient and come in many forms with unique benefits. Get to know the one in this formula."}
+                  </p>
+                  <div>
+                    <h3 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
+                      {primaryIngredient?.name || "palmitoyl tripeptide-1"}
+                    </h3>
+                    <p className="mt-2 text-sm sm:text-base text-neutral-700 leading-relaxed border-l-4 border-amber-300 pl-3">
+                      {primaryIngredient?.why ||
+                        "A short chain of amino acids that hydrates, smooths, and plumps lips while reducing the look of fine lines."}
+                    </p>
                   </div>
+                  {otherIngredientNames.length > 0 && (
+                    <p className="text-sm text-neutral-700">
+                      also made with{" "}
+                      <span className="font-semibold text-neutral-900">
+                        {otherIngredientNames.join(", ")}
+                      </span>
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="w-full lg:w-1/2 order-1 lg:order-2 flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-[280px] sm:max-w-[320px] lg:max-w-none flex justify-center">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[var(--chip-bg)] to-transparent -rotate-3 scale-100 lg:-rotate-6 lg:scale-105 -z-10" />
-              <img
-                src={resolveAsset(p.hero?.image) || heroSrc}
-                alt="Product Ingredients"
-                className="w-full h-auto object-cover shadow-2xl rotate-2 lg:rotate-3 transition-transform duration-700 hover:rotate-0"
-                loading="lazy"
-              />
+
+                {/* Overlay for full list */}
+                {showFullIngredients && (
+                  <div className="absolute inset-0 bg-[#fdf8ef]/98 backdrop-blur-sm px-6 sm:px-10 py-10 flex flex-col gap-4 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setShowFullIngredients(false)}
+                      className="absolute right-4 top-4 p-2 rounded-full border border-neutral-300 bg-white text-neutral-800 hover:border-neutral-500"
+                      aria-label="Close ingredients list"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <h3 className="text-3xl sm:text-4xl font-extrabold text-neutral-900">
+                      {p.ingredientsTitle || "ingredients"}
+                    </h3>
+                    <p className="text-sm sm:text-base text-neutral-700 leading-relaxed whitespace-pre-line">
+                      {fullIngredientsText || "Full ingredients list coming soon."}
+                    </p>
+                    {p.ingredientsNote && (
+                      <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">{p.ingredientsNote}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Right panel */}
+              <div className="relative bg-white flex items-center justify-center p-6 sm:p-10">
+                <button
+                  type="button"
+                  aria-expanded={showFullIngredients}
+                  onClick={() => setShowFullIngredients(true)}
+                  className="absolute right-5 top-5 rounded-full border border-neutral-300 px-4 py-2 text-[11px] font-semibold tracking-wide uppercase bg-white/85 hover:bg-white shadow-sm"
+                >
+                  Full ingredients list
+                </button>
+                <div className="relative w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[480px]">
+                  <div className="absolute inset-4 bg-gradient-to-tr from-amber-100/60 to-transparent rounded-full blur-3xl -z-10" />
+                  <img
+                    src={resolveAsset(p.hero?.image) || heroSrc}
+                    alt="Product close-up"
+                    className="w-full h-auto object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -1092,12 +1316,11 @@ export default function ProductDetails({ data }) {
             >
               <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 text-white">
                 <div className="pointer-events-none absolute bottom-6 sm:bottom-8 left-4 sm:left-6 z-10 max-w-xl text-white md:bottom-12">
-                  <h3 className="pointer-events-auto mb-2 sm:mb-3 text-xl sm:text-2xl md:text-4xl font-semibold tracking-wide">
-                    Cevonne
+                  <h3 className="text-4xl font-bold md:text-6xl mb-6 tracking-tight text-white">
+                    {p.videoTitle}
                   </h3>
                   <p className="text-lg md:text-xl text-white/90 leading-relaxed max-w-2xl">
-                    Velvet matte color and intense longwear adorn lips with immediate
-                    moisture and rich tones — in 28 irresistible shades.
+                    {p.videoDescription}
                   </p>
                 </div>
               </div>
@@ -1282,6 +1505,39 @@ export default function ProductDetails({ data }) {
         </div>
       </section>
 
+      {/* ===== INGREDIENTS ===== */}
+      <section className="w-full px-4 sm:px-6 lg:px-12 py-14 md:py-20 bg-white" data-bg-key="ingredients">
+        <div className="grid lg:grid-cols-2 gap-10">
+          <div className="space-y-4">
+            <p className="text-sm font-semibold text-neutral-500 uppercase tracking-[0.2em]">Key Ingredients</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-neutral-900">What’s inside</h2>
+            <div className="space-y-3">
+              {(p.ingredients_highlight || []).map((ing, i) => (
+                <div key={ing.name || i} className="border border-neutral-200 rounded-2xl p-4 bg-neutral-50">
+                  <h4 className="font-semibold text-neutral-900">{ing.name}</h4>
+                  <p className="text-sm text-neutral-600">{ing.why}</p>
+                </div>
+              ))}
+              {!p.ingredients_highlight?.length && (
+                <p className="text-sm text-neutral-600">Ingredient story coming soon.</p>
+              )}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <p className="text-sm font-semibold text-neutral-500 uppercase tracking-[0.2em]">Supporting ingredients</p>
+            {Array.isArray(p.ingredients_supporting) && p.ingredients_supporting.length ? (
+              <ul className="space-y-2 text-sm text-neutral-700 list-disc list-inside">
+                {p.ingredients_supporting.map((item, i) => (
+                  <li key={item || i}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-neutral-600">Supporting ingredients will be added soon.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* ===== YOU MAY ALSO LIKE ===== */}
       <section className="w-full bg-white py-10 sm:px-6 lg:px-1" data-bg-key="recommendations">
         <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)] mb-8 text-center">You May Also Like</h2>
@@ -1292,7 +1548,7 @@ export default function ProductDetails({ data }) {
               <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
                 <img
                   src={resolveAsset(p.hero?.image) || heroSrc}
-                  alt="Product"
+                  alt={p.name}
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
 
@@ -1315,10 +1571,14 @@ export default function ProductDetails({ data }) {
               {/* Details */}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-medium text-neutral-900 line-clamp-1">Cevonne Satin Lipstick</h3>
-                  <span className="text-sm font-semibold text-neutral-900">{p.currency}{p.price}</span>
+                  <h3 className="font-medium text-neutral-900 line-clamp-1">{p.name}</h3>
+                  <span className="text-sm font-semibold text-neutral-900">
+                    {p.currency}{p.price ?? p.mrp ?? ""}
+                  </span>
                 </div>
-                <p className="text-xs text-neutral-500 mb-3">Velvet matte finish</p>
+                <p className="text-xs text-neutral-500 mb-3 line-clamp-2">
+                  {p.subtitle || p.finish || "Beauty essentials"}
+                </p>
 
                 {/* Shades Preview */}
                 <div className="flex items-center gap-1 mb-4">
