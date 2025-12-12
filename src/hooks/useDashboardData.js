@@ -18,11 +18,18 @@ const emptyState = {
     pendingCount: 0,
   },
   orders: [],
+  orderSummary: {
+    total: 0,
+    pending: 0,
+    paid: 0,
+    fulfilled: 0,
+    revenue: 0,
+  },
 };
 
 const defaultRequest = (url, options) => fetch(url, options);
 
-export function useDashboardData(enabled = true, request = defaultRequest) {
+export function useDashboardData(enabled = true, request = defaultRequest, isAdmin = false) {
   const [data, setData] = useState(emptyState);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -58,16 +65,6 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
           }
         };
 
-        let localOrders = [];
-        try {
-          // Lazy import to avoid SSR warnings
-          const { readOrders } = await import("@/lib/orderStorage.js");
-          localOrders = readOrders();
-        } catch (err) {
-          console.warn("Could not load local orders", err);
-          localOrders = [];
-        }
-
         const fetchJson = async (path, fallback = null) => {
           try {
             const response = await request(`${API_BASE}${path}`);
@@ -90,6 +87,7 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
           inventory,
           lowInventory,
           allReviews,
+          ordersPayload,
         ] = await Promise.all([
           fetchArray("/products"),
           fetchArray("/shades"),
@@ -98,6 +96,7 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
           fetchArray("/inventory"),
           fetchArray("/inventory/low?lt=12"),
           fetchJson("/reviews?status=ALL", { items: [], meta: emptyState.reviewMeta }),
+          fetchJson(isAdmin ? "/orders" : "/orders/my", { items: [], summary: emptyState.orderSummary }),
         ]);
 
         if (!cancelled) {
@@ -106,7 +105,11 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
             typeof allReviews?.meta === "object"
               ? { ...emptyState.reviewMeta, ...allReviews.meta }
               : { ...emptyState.reviewMeta };
-          const orders = Array.isArray(localOrders) ? localOrders : [];
+          const fetchedOrders = Array.isArray(ordersPayload?.items) ? ordersPayload.items : [];
+          const orderSummary =
+            typeof ordersPayload?.summary === "object" && ordersPayload.summary !== null
+              ? { ...emptyState.orderSummary, ...ordersPayload.summary }
+              : { ...emptyState.orderSummary };
           setData({
             products,
             shades,
@@ -116,7 +119,8 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
             lowInventory,
             reviews: reviewsItems,
             reviewMeta,
-            orders,
+            orders: fetchedOrders,
+            orderSummary,
           });
         }
       } catch (err) {
@@ -136,7 +140,7 @@ export function useDashboardData(enabled = true, request = defaultRequest) {
     return () => {
       cancelled = true;
     };
-  }, [request, enabled, version]);
+  }, [request, enabled, version, isAdmin]);
 
   const stats = useMemo(() => {
     const shades = Array.isArray(data.shades) ? data.shades : [];

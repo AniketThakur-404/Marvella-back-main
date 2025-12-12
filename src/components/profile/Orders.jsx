@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Package, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { readOrders, updateOrderStatus } from "@/lib/orderStorage";
+import { useUserOrders } from "@/hooks/useUserOrders";
 
 const STATUS_FLOW = ["Pending", "Processing", "Shipped", "Out for Delivery", "Delivered"];
 
@@ -15,27 +15,21 @@ const badgeForStatus = (status = "") => {
 };
 
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
+  const { orders = [], loading: ordersLoading } = useUserOrders();
   const [expandedId, setExpandedId] = useState(null);
-
-  useEffect(() => {
-    setOrders(readOrders());
-  }, []);
-
-  const advanceStatus = (order) => {
-    if (!order) return;
-    const current = order.status || "Pending";
-    const idx = STATUS_FLOW.findIndex((s) => s.toLowerCase() === current.toLowerCase());
-    const next = STATUS_FLOW[Math.min(STATUS_FLOW.length - 1, idx === -1 ? 0 : idx + 1)];
-    const nextOrders = updateOrderStatus(order.id || order.number, next);
-    setOrders(nextOrders);
-  };
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[var(--primary)]">Order History</h1>
+      <p className="text-sm text-[var(--muted-foreground)]">
+        Shipping and status updates are handled by the dashboard team. Orders shown here are read-only.
+      </p>
       <div className="space-y-4">
-        {orders.length === 0 ? (
+        {ordersLoading ? (
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted-foreground)]">
+            Loading your order history...
+          </div>
+        ) : orders.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-6 text-sm text-[var(--muted-foreground)]">
             No orders yet. Orders you place will appear here.
           </div>
@@ -86,14 +80,6 @@ export default function Orders() {
                       }
                     >
                       Track <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => advanceStatus(order)}
-                      className="rounded-full"
-                    >
-                      Update status
                     </Button>
                   </div>
                 </div>

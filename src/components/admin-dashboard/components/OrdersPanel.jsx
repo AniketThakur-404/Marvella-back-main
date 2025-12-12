@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/components/admin-dashboard/utils";
-import { updateOrderStatus } from "@/lib/orderStorage.js";
+import { useAuth } from "@/context/AuthContext";
+
+const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
 const statusStyles = {
   pending: "border-amber-200 bg-amber-50 text-amber-800",
@@ -28,6 +30,7 @@ const nextStatus = (current) => {
 };
 
 export function OrdersPanel({ orders = [], loading = false, refresh }) {
+  const { authFetch, isAdmin } = useAuth();
   const sorted = Array.isArray(orders)
     ? [...orders].sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
@@ -42,13 +45,29 @@ export function OrdersPanel({ orders = [], loading = false, refresh }) {
     revenue: sorted.reduce((acc, order) => acc + (Number(order?.totals?.total) || 0), 0),
   };
 
-  const handleAdvance = (order) => {
+  const handleAdvance = async (order) => {
     const next = nextStatus(order?.status);
-    updateOrderStatus(order?.id ?? order?.number, next);
-    toast.success(`Order ${order?.number || order?.id} marked ${statusLabels[next] ?? next}`);
-    refresh?.();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("dashboard:data:refresh"));
+    try {
+      const response = await authFetch(`${API_BASE}/orders/${order.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: next }),
+      });
+      if (!response.ok) {
+        if (response.status === 403) {
+          toast.error("Only admins can update order status.");
+          return;
+        }
+        const message = await response.text().catch(() => "");
+        throw new Error(message || "Failed to update order status");
+      }
+      toast.success(`Order ${order?.number || order?.id} marked ${statusLabels[next] ?? next}`);
+      refresh?.();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("dashboard:data:refresh"));
+      }
+    } catch (err) {
+      console.error("Order update failed", err);
+      toast.error(err?.message || "Unable to update order");
     }
   };
 
@@ -57,7 +76,7 @@ export function OrdersPanel({ orders = [], loading = false, refresh }) {
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>Orders & shipping</CardTitle>
-          <CardDescription>Test orders saved locally before the real gateway.</CardDescription>
+          <CardDescription>Live orders from the storefront with shipping details.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full">

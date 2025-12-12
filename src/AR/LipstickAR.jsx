@@ -784,7 +784,8 @@ export default function VirtualTryOn() {
     compareEnabledRef.current = false;
     setCompareEnabled(false);
     setStarted(false);
-    setLoading(false);
+    setStarted(false);
+
   }
 
   function handleExit() {
@@ -803,15 +804,12 @@ export default function VirtualTryOn() {
       return;
     }
 
-    setLoading(true);
-
     if (!window.FaceMesh || !window.Hands) {
       const ok = await ensureModels();
       if (!ok) {
         setError(
           "Couldn’t load vision models. Please allow cdn.jsdelivr.net or unpkg."
         );
-        setLoading(false);
         return;
       }
       setError("");
@@ -839,7 +837,7 @@ export default function VirtualTryOn() {
       setupCanvas();
       setStarted(true);
 
-      setTimeout(() => setLoading(false), 1200);
+
 
       startProcessing();
 
@@ -849,7 +847,7 @@ export default function VirtualTryOn() {
       console.error(e);
       setError("Camera access failed. Please ensure permission is granted.");
       stopCamera();
-      setLoading(false);
+
     }
   }
 
@@ -1539,18 +1537,10 @@ export default function VirtualTryOn() {
           className="absolute inset-0 w-full h-full object-cover"
         />
 
-        {/* LOADING OVERLAY */}
-        {loading && (
-          <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center animate-fade-in">
-            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
-            <div className="text-sm uppercase tracking-widest text-white/80">
-              Loading Experience
-            </div>
-          </div>
-        )}
+
 
         {/* TOP HEADER (Safe area padded) */}
-        {consentAccepted && !showConsent && !snapshot && !loading && (
+        {consentAccepted && !showConsent && !snapshot && (
           <div className="absolute top-0 left-0 right-0 z-40 flex justify-between items-start p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
             <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/90 drop-shadow-md pointer-events-auto">
               Cevonne AR
@@ -1634,7 +1624,7 @@ export default function VirtualTryOn() {
         )}
 
         {/* START BUTTON */}
-        {!started && consentAccepted && !loading && (
+        {!started && consentAccepted && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30 backdrop-blur-sm">
             <button
               onClick={startCamera}

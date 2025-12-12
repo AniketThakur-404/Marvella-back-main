@@ -4,6 +4,7 @@ import { Menu, Search, Heart, User, Phone, ShoppingCart } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { useShop } from "@/context/ShopContext"
+import { useLanguage } from "@/context/LanguageContext"
 import logo from "@/assets/logos/cevonne_main_logo.png"
 
 const NAV_H_MOBILE = "h-16"     // 64px
@@ -15,6 +16,7 @@ const Navbar = () => {
   const THRESHOLD = 10
 
   const { cartItems, wishlist, openDrawer } = useShop()
+  const { t } = useLanguage()
 
   useEffect(() => {
     const onScroll = () => {
@@ -30,14 +32,14 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  const textClass = "text-neutral-800"
+  const textClass = "text-[var(--foreground)]"
 
   return (
     <>
       <header
         className={`hidden md:block fixed inset-x-0 top-0 z-50 w-full transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300
         ${solid
-            ? "bg-white/95 border-b border-neutral-200 backdrop-blur supports-[backdrop-filter]:bg-white shadow-sm"
+            ? "bg-[var(--background)]/95 border-b border-[var(--border)] backdrop-blur supports-[backdrop-filter]:bg-[var(--background)] shadow-sm"
             : "bg-transparent border-transparent"
           }`}
       >
@@ -53,35 +55,35 @@ const Navbar = () => {
                   aria-label="Open menu"
                 >
                   <Menu className="h-5 w-5" />
-                  <span className="hidden sm:inline">Menu</span>
+                  <span className="hidden sm:inline">{t("nav.menu")}</span>
                 </button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 p-0">
+              <SheetContent side="left" className="w-80 p-0 bg-[var(--background)]">
                 <div className="flex h-full flex-col">
                   <div className="flex-1 overflow-y-auto p-6">
-                    <h3 className="mb-6 text-3xl font-serif font-bold tracking-wide text-[var(--fg)]">Menu</h3>
-                    <nav className="space-y-6 text-base text-[var(--fg)]">
-                      <Link className="block hover:underline" to="/search">Shop All</Link>
-                      <Link className="block hover:underline" to="/search">Lips</Link>
-                      <Link className="block hover:underline" to="/search">Face</Link>
-                      <Link className="block hover:underline" to="/search">Eyes</Link>
-                      <Link className="block hover:underline" to="/ar/lipstick">Virtual Try-On</Link>
-                      <a className="block hover:underline" href="#">About Us</a>
+                    <h3 className="mb-6 text-3xl font-serif font-bold tracking-wide text-[var(--foreground)]">{t("nav.menu")}</h3>
+                    <nav className="space-y-6 text-base text-[var(--foreground)]">
+                      <Link className="block hover:underline hover:text-[var(--primary)]" to="/search">{t("nav.shopAll")}</Link>
+                      <Link className="block hover:underline hover:text-[var(--primary)]" to="/search">{t("nav.lips")}</Link>
+                      <Link className="block hover:underline hover:text-[var(--primary)]" to="/search">{t("nav.face")}</Link>
+                      <Link className="block hover:underline hover:text-[var(--primary)]" to="/search">{t("nav.eyes")}</Link>
+                      <Link className="block hover:underline hover:text-[var(--primary)]" to="/ar/lipstick">{t("nav.virtualTryOn")}</Link>
+                      <a className="block hover:underline hover:text-[var(--primary)]" href="#">{t("nav.aboutUs")}</a>
                     </nav>
                   </div>
                   <div
-                    className="md:hidden border-t px-4 pt-3 pb-4"
+                    className="md:hidden border-t border-[var(--border)] px-4 pt-3 pb-4"
                     style={{
                       paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
                     }}
                   >
                     <a
                       href="#"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-neutral-200 px-4 py-2.5 text-sm hover:bg-neutral-50"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-[var(--border)] px-4 py-2.5 text-sm hover:bg-[var(--secondary-100)] text-[var(--foreground)]"
                       aria-label="Call Us"
                     >
                       <Phone className="h-4 w-4" />
-                      Call Us
+                      {t("nav.callUs")}
                     </a>
                   </div>
                 </div>
@@ -94,7 +96,7 @@ const Navbar = () => {
               aria-label="Search"
             >
               <Search className="h-5 w-5" />
-              <span className="hidden sm:inline">Search</span>
+              <span className="hidden sm:inline">{t("nav.search")}</span>
             </Link>
           </div>
 
@@ -116,12 +118,12 @@ const Navbar = () => {
               className={`hidden md:inline text-sm hover:opacity-80 transition-colors duration-300 ${textClass}`}
               aria-label="Call Us"
             >
-              Call Us
+              {t("nav.callUs")}
             </a>
 
             <Separator
               orientation="vertical"
-              className={`hidden md:block h-4 transition-opacity duration-300 ${solid ? "opacity-100" : "opacity-0"
+              className={`hidden md:block h-4 bg-[var(--border)] transition-opacity duration-300 ${solid ? "opacity-100" : "opacity-0"
                 }`}
             />
 

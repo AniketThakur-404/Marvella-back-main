@@ -34,7 +34,7 @@ import { useSidebar } from "@/hooks/use-sidebar";
 const primaryNav = [
   { title: "Home", icon: LayoutDashboard, href: "/dashboard" },
   { title: "Products", icon: Package, href: "/dashboard/products" },
-  { title: "Orders", icon: Truck, href: "/dashboard#orders" },
+  { title: "Orders", icon: Truck, href: "/dashboard/orders" },
   { title: "Inventory", icon: Boxes, href: "/dashboard#inventory" },
   { title: "Collections", icon: Layers3, href: "/dashboard#collections" },
   { title: "Shades", icon: Palette, href: "/dashboard/shades" },

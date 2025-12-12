@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import VideoHero from "@/components/media/VideoHero";
 import introVideoFallback from "@/assets/video/intro1.mp4";
+import cevonneProducts, { productById as cevonneProductIndex } from "@/data/cevonneProducts";
 import {
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "@/components/ui/accordion";
@@ -23,9 +24,26 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useShop } from "@/context/ShopContext";
-const BASE_PRODUCT = {};
-const BASE_GALLERY = [];
-const findSampleProduct = () => null;
+
+const BASE_PRODUCT = cevonneProducts?.[0] || {};
+const BASE_GALLERY = Array.isArray(BASE_PRODUCT?.media?.gallery)
+  ? BASE_PRODUCT.media.gallery.map((g) => g.url || g.id).filter(Boolean)
+  : [];
+const findSampleProduct = (slug = "") => {
+  if (!slug) return null;
+  const raw = String(slug).trim();
+  const key = raw.toLowerCase();
+  return (
+    cevonneProductIndex?.[raw] ||
+    cevonneProductIndex?.[key] ||
+    cevonneProducts.find(
+      (item) =>
+        item.id?.toLowerCase() === key ||
+        item.slug?.toLowerCase() === key
+    ) ||
+    null
+  );
+};
 
 const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
@@ -39,6 +57,7 @@ const FALLBACK_IMAGE =
   IMG["/src/assets/images/product1.png"] ||
   Object.values(IMG)[0] ||
   "";
+
 function resolveAsset(pth = "") {
   if (!pth) return "";
   let clean = String(pth).split("?")[0].split("#")[0].trim();
@@ -71,9 +90,6 @@ function resolveMedia(pth = "") {
   return found ? found[1] : "";
 }
 
-
-
-/* ---------- Handlers ---------- */
 /* ---------- UI bits ---------- */
 const RatingStars = ({ value = 0 }) => {
   const full = Math.floor(value);
@@ -82,24 +98,12 @@ const RatingStars = ({ value = 0 }) => {
     <div className="inline-flex items-center gap-0.5" aria-label={`Rating ${value} out of 5`}>
       {Array.from({ length: 5 }).map((_, i) =>
         i < full ? <Star key={i} className="h-4 w-4 fill-current" /> :
-          i === full && half ? <StarHalf key={i} className="h-4 w-4 fill-current" /> :
-            <Star key={i} className="h-4 w-4" />
+        i === full && half ? <StarHalf key={i} className="h-4 w-4 fill-current" /> :
+          <Star key={i} className="h-4 w-4" />
       )}
     </div>
   );
 };
-
-const ShadeDot = ({ hex, img, active, onClick, label }) => (
-  <button
-    onClick={onClick}
-    aria-label={label}
-    className={`h-7 w-7 rounded-full ring-offset-2 overflow-hidden transition-all ${active ? "ring-2 ring-black scale-[1.05]" : "ring-1 ring-neutral-300"
-      }`}
-    style={img ? undefined : { background: hex }}
-  >
-    {img && <img src={img} alt={label} className="h-full w-full object-cover" />}
-  </button>
-);
 
 /* Ultra-smooth crossfade (images ignore pointer events so clicks reach the chip) */
 const fadeMs = 160;
@@ -223,7 +227,6 @@ const normalizeShades = (sourceShades = [], experienceShades = [], gallery = [],
       desc: shade.desc ?? shade.description ?? "",
     }));
   } else if (source.type === 'single' || !sourceShades?.length) {
-    // Create a single default shade for single products
     mapped = [{
       key: source.slug ?? source.id ?? 'default',
       name: source.name ?? 'Standard',
@@ -232,14 +235,11 @@ const normalizeShades = (sourceShades = [], experienceShades = [], gallery = [],
       desc: source.description?.body ?? "",
     }];
   }
-
   return mapped;
 };
 
 const buildProductView = (source = {}) => {
   const experience = source.experience ?? {};
-
-  // New schema objects
   const pricing = source.pricing || {};
   const media = source.media || {};
   const desc = source.description || {};
@@ -376,19 +376,35 @@ export default function ProductDetails({ data }) {
   const ctaRef = useRef(null);
   const reviewsRef = useRef(null);
 
+  /* ===== HOVER REVEAL STATE (NEW FEATURE) ===== */
+  const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
+  
+  // Mapped to your provided screenshot images as placeholders
+  const featureList = [
+    {
+      label: "hydrates",
+      img: resolveAsset("product1.png"), // Using your available images
+      color: "text-[#3f6212]" // Deep green
+    },
+    {
+      label: "nourishes",
+      img: resolveAsset("product2.png"),
+      color: "text-[#3f6212]"
+    },
+    {
+      label: "replenishes",
+      img: resolveAsset("product3.png"),
+      color: "text-[#3f6212]"
+    },
+  ];
+
   useEffect(() => {
     const handleScroll = () => {
       if (!ctaRef.current) return;
-
       const ctaBottom = ctaRef.current.getBoundingClientRect().bottom;
-
-      // Calculate distance to bottom of page to detect footer
-      const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100; // 100px buffer
-
-      // Show when CTA is scrolled out of view (top) AND not yet at the footer
+      const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
       setShowStickyBar(ctaBottom < 0 && !scrolledToBottom);
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -411,6 +427,12 @@ export default function ProductDetails({ data }) {
       try {
         const response = await fetch(`${API_BASE}/products/${id}`);
         if (!response.ok) {
+          const localFallback = findSampleProduct(id);
+          if (response.status === 404 && localFallback && !cancelled) {
+            setRemoteProduct(localFallback);
+            setProductError(null);
+            return;
+          }
           throw new Error("Failed to load product");
         }
         const payload = await response.json();
@@ -1329,6 +1351,46 @@ export default function ProductDetails({ data }) {
         </section>
       </div >
 
+      {/* ===== NEW HOVER REVEAL SECTION (MOVED HERE) ===== */}
+      <section className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 md:mt-24 mb-16" data-bg-key="features">
+        <div className="bg-neutral-50 rounded-2xl p-6 md:p-12 border border-neutral-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            {/* Left: Dynamic Image */}
+            <div className="relative aspect-square md:aspect-[4/3] w-full overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-neutral-100">
+              <SmoothImage
+                src={featureList[activeFeatureIndex]?.img}
+                alt={featureList[activeFeatureIndex]?.label}
+                className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+              />
+            </div>
+
+            {/* Right: Hover List */}
+            <div className="flex flex-col justify-center space-y-6 pl-0 md:pl-8">
+              <span className="text-xs font-bold tracking-[0.2em] text-neutral-400 uppercase">
+                Lip care that:
+              </span>
+              <div className="flex flex-col gap-2">
+                {featureList.map((feature, index) => (
+                  <h3
+                    key={feature.label}
+                    onMouseEnter={() => setActiveFeatureIndex(index)}
+                    className={`
+                        text-4xl md:text-5xl lg:text-6xl font-black uppercase cursor-pointer transition-all duration-300
+                        ${activeFeatureIndex === index
+                        ? `${feature.color} translate-x-4 scale-105 drop-shadow-sm` // Active State
+                        : "text-neutral-300 hover:text-neutral-400"               // Inactive State
+                      }
+                      `}
+                  >
+                    {feature.label}
+                  </h3>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ===== EXPLORE SHADES ===== */}
       {
         !!p.shades?.length && (
@@ -1374,8 +1436,6 @@ export default function ProductDetails({ data }) {
                     <span key={i} className={`h-1.5 w-4 rounded-full transition-all ${sectionImgIdx === i ? "bg-black w-6" : "bg-neutral-400"}`} />
                   ))}
                 </div>
-
-
               </div>
 
               {/* Scrollable cards */}
@@ -1505,7 +1565,7 @@ export default function ProductDetails({ data }) {
         </div>
       </section>
 
-      {/* ===== INGREDIENTS ===== */}
+      {/* ===== INGREDIENTS (BOTTOM) ===== */}
       <section className="w-full px-4 sm:px-6 lg:px-12 py-14 md:py-20 bg-white" data-bg-key="ingredients">
         <div className="grid lg:grid-cols-2 gap-10">
           <div className="space-y-4">

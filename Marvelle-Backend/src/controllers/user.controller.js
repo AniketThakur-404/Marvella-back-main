@@ -23,6 +23,15 @@ const resetSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const updateProfileSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').optional(),
+    email: z.string().email().optional(),
+  })
+  .refine((payload) => payload.name || payload.email, {
+    message: 'No changes provided',
+  });
+
 const sanitizeUser = (user) => {
   if (!user) return null;
   const { passwordHash, ...rest } = user;
@@ -219,5 +228,24 @@ exports.resetPassword = async (req, res, next) => {
       return res.status(400).json({ message: error.errors[0]?.message || 'Invalid payload' });
     }
     return next(error);
+  }
+};
+
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const updates = updateProfileSchema.parse(req.body);
+    const prisma = await getPrisma();
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updates,
+    });
+
+    return res.status(200).json(sanitizeUser(updated));
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: error.errors[0]?.message || 'Invalid payload' });
+    }
+    return handleError(error, res, next);
   }
 };

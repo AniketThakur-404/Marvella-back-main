@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import logo from "@/assets/logos/cevonne_main_logo.png";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/context/LanguageContext";
+import { Check, ChevronUp } from "lucide-react";
 
 export default function Footer() {
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const { language, setLanguage, supportedLanguages } = useLanguage();
+
+  const currentLang = supportedLanguages.find(l => l.code === language);
+
+  const handleLanguageChange = (langCode) => {
+    setLanguage(langCode);
+    setShowLanguageDropdown(false);
+  };
+
   return (
     <footer className="bg-white text-neutral-900 border-t">
       <div className="mx-auto max-w-screen-2xl px-6 md:px-10 lg:px-14">
@@ -40,7 +52,7 @@ export default function Footer() {
             <h6 className="text-[10px] tracking-[0.22em] uppercase text-neutral-500 mb-4">About Cevonne</h6>
             <ul className="space-y-3 text-sm" style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
               <li><a href="#shows" className="hover:underline underline-offset-2">Fashion Shows</a></li>
-              <li><a href="#arts" className="hover:underline underline-offset-2">Arts & Culture</a></li>
+              <li><a href="#arts" className="hover:underline underline-offset-2">Arts &amp; Culture</a></li>
               <li><a href="#maison" className="hover:underline underline-offset-2">La Maison</a></li>
               <li><a href="#sustainability" className="hover:underline underline-offset-2">Sustainability</a></li>
               <li><a href="#news" className="hover:underline underline-offset-2">Latest News</a></li>
@@ -64,17 +76,43 @@ export default function Footer() {
 
         {/* Bottom: language • wordmark • legal */}
         <div className="flex flex-col gap-6 border-t pt-8 pb-10 md:flex-row md:items-center md:gap-4">
-          {/* Language */}
-          <div className="order-2 md:order-1 md:w-1/3">
+          {/* Language Selector */}
+          <div className="order-2 md:order-1 md:w-1/3 relative">
             <button
               type="button"
-              className="inline-flex items-center gap-2 text-sm text-neutral-700 hover:text-black"
+              onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+              className="inline-flex items-center gap-2 text-sm text-neutral-700 hover:text-black transition-colors duration-200 group"
               style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}
               aria-label="Change language"
             >
               <GlobeIcon className="h-4 w-4" />
-              International (English)
+              <span>{currentLang?.nativeName || "English"}</span>
+              <ChevronUp className={`h-3 w-3 transition-transform duration-200 ${showLanguageDropdown ? '' : 'rotate-180'}`} />
             </button>
+
+            {/* Language Dropdown */}
+            {showLanguageDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 min-w-[180px]">
+                {supportedLanguages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors duration-150 ${language === lang.code
+                        ? 'bg-slate-50 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{lang.nativeName}</span>
+                    </div>
+                    {language === lang.code && (
+                      <Check className="h-4 w-4 text-slate-700" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Wordmark */}
@@ -82,7 +120,7 @@ export default function Footer() {
             <div
               className="text-2xl md:text-3xl tracking-[0.35em] select-none"
               style={{ fontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif' }}
-              aria-label="Louis Vuitton wordmark"
+              aria-label="Cevonne wordmark"
             >
               <Link to="/">
                 <img src={logo} alt="" className="h-8 w-auto lg:h-12" />
@@ -94,7 +132,7 @@ export default function Footer() {
           <nav className="order-3 md:order-3 md:w-1/3 flex items-center justify-start md:justify-end gap-6 text-sm text-neutral-700"
             style={{ fontFamily: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif' }}>
             <a href="#sitemap" className="hover:underline underline-offset-2">Sitemap</a>
-            <a href="#legal" className="hover:underline underline-offset-2">Legal & privacy</a>
+            <a href="#legal" className="hover:underline underline-offset-2">Legal &amp; privacy</a>
             <a href="#cookies" className="hover:underline underline-offset-2">Cookies</a>
           </nav>
         </div>

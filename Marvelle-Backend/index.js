@@ -12,6 +12,7 @@ const collectionRoutes = require('./src/routes/collection.routes');
 const inventoryRoutes = require('./src/routes/inventory.routes');
 const uploadRoutes = require('./src/routes/upload.routes');
 const reviewRoutes = require('./src/routes/review.routes');
+const orderRoutes = require('./src/routes/order.routes');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.use((err, req, res, next) => {
   if (err && String(err.message || '').startsWith('CORS:')) {

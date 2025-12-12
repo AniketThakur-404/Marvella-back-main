@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "init:env": "node scripts/init-env.cjs",
+    "create:admin": "node scripts/create-admin.js",
     "postinstall": "prisma generate"
   },
   "keywords": [],

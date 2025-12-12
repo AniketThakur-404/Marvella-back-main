@@ -37,7 +37,7 @@ const formatDate = (value) => {
 };
 
 export default function Dashboard() {
-  const { authFetch } = useAuth();
+  const { authFetch, isAdmin } = useAuth();
   const request = authFetch ?? defaultRequest;
   const navigate = useNavigate();
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
   };
 
   const { products, collections, shades, inventory, lowInventory, orders, stats, loading, refresh } =
-    useDashboardData(true, request);
+    useDashboardData(true, request, isAdmin);
 
   const goToNewProduct = () => navigate("/dashboard/products/new");
   const goToProducts = () => navigate("/dashboard/products");

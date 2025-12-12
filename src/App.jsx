@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Home from './components/pages/Home'
 import Footer from './components/Footer'
@@ -18,6 +18,7 @@ import ProductOverview from "@/components/admin-dashboard/ProductOverview"
 import ProductCreate from "@/components/admin-dashboard/ProductCreate"
 import ProductEdit from "@/components/admin-dashboard/ProductEdit"
 import ShadesPage from "@/components/admin-dashboard/Shades"
+import OrdersPage from "@/components/admin-dashboard/OrdersPage"
 import ProfileLayout from "@/components/profile/ProfileLayout"
 import ProfileOverview from "@/components/profile/ProfileOverview"
 import Orders from "@/components/profile/Orders"
@@ -26,6 +27,53 @@ import Settings from "@/components/profile/Settings"
 import MobileBottomNav from "@/components/MobileBottomNav"
 import MobileTopBar from "@/components/MobileTopBar"
 import { Toaster } from "@/components/ui/sonner";
+import { useAuth } from "@/context/AuthContext";
+
+const AccessDenied = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4">
+    <div className="max-w-md space-y-4 text-center">
+      <h1 className="text-2xl font-semibold">Access denied</h1>
+      <p className="text-sm text-muted-foreground">
+        You need an admin account to manage the dashboard. Continue browsing the storefront or log in with admin
+        credentials.
+      </p>
+      <div className="flex justify-center gap-2">
+        <a
+          href="/"
+          className="rounded-full border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+        >
+          Back to site
+        </a>
+        <a
+          href="/login"
+          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Admin login
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
+const AdminRoute = ({ element }) => {
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-neutral-500">
+        Loading...
+      </div>
+    );
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ redirect: location.pathname }} />;
+  }
+  if (!isAdmin) {
+    return <AccessDenied />;
+  }
+  return element;
+};
 
 
 const App = () => {
@@ -53,11 +101,12 @@ const App = () => {
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path='/signup' element={<Signup />} />
         <Route path='/login' element={<Login />} />
-        <Route path='/dashboard' element={<Dashboard />} />
-        <Route path='/dashboard/products' element={<ProductOverview />} />
-        <Route path='/dashboard/products/new' element={<ProductCreate />} />
-        <Route path='/dashboard/products/:id/edit' element={<ProductEdit />} />
-        <Route path='/dashboard/shades' element={<ShadesPage />} />
+        <Route path='/dashboard' element={<AdminRoute element={<Dashboard />} />} />
+        <Route path='/dashboard/products' element={<AdminRoute element={<ProductOverview />} />} />
+        <Route path='/dashboard/products/new' element={<AdminRoute element={<ProductCreate />} />} />
+        <Route path='/dashboard/products/:id/edit' element={<AdminRoute element={<ProductEdit />} />} />
+        <Route path='/dashboard/shades' element={<AdminRoute element={<ShadesPage />} />} />
+        <Route path='/dashboard/orders' element={<AdminRoute element={<OrdersPage />} />} />
 
         {/* Profile Routes */}
         <Route path="/profile" element={<ProfileLayout />}>

@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -220,5 +221,12 @@ body.dashboard-form-lock {
     section {
       padding-inline: clamp(1.25rem, 3vw, 3rem);
     }
+  }
+}
+
+/* Force sharp edges sitewide */
+@layer base {
+  *, *::before, *::after {
+    border-radius: 0 !important;
   }
 }

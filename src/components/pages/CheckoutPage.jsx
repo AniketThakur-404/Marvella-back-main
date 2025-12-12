@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShop } from "@/context/ShopContext";
-import { addOrder, generateOrderNumber } from "@/lib/orderStorage.js";
+import { useAuth } from "@/context/AuthContext";
+import { readAddresses } from "@/lib/addressStorage";
 
 const shippingFields = [
   { label: "Full name", name: "fullName", placeholder: "Priya Kapoor" },
@@ -40,15 +41,76 @@ const paymentOptions = [
 ];
 
 const formatMoney = (value) => (Number.isFinite(value) ? value.toLocaleString("en-IN") : "0");
+const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
 export default function CheckoutPage() {
   const { cartItems, clearCart } = useShop();
+  const { isAuthenticated, user, isLoading: authLoading, authFetch } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [shippingData, setShippingData] = useState(
     shippingFields.reduce((acc, field) => ({ ...acc, [field.name]: "" }), {})
   );
   const [paymentMethod, setPaymentMethod] = useState(paymentOptions[0].value);
   const [placing, setPlacing] = useState(false);
   const [orderId, setOrderId] = useState(null);
+
+  const shippingStorageKey = useMemo(
+    () => (user?.id ? `marvella:shipping:${user.id}` : "marvella:shipping:guest"),
+    [user?.id]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(shippingStorageKey);
+      const parsed = raw ? JSON.parse(raw) : null;
+      const base = {
+        fullName: user?.name || "",
+        email: user?.email || "",
+      };
+
+      if (parsed && typeof parsed === "object") {
+        setShippingData((prev) => ({
+          ...prev,
+          ...base,
+          ...parsed,
+          fullName: parsed.fullName || base.fullName || prev.fullName,
+          email: parsed.email || base.email || prev.email,
+        }));
+        return;
+      }
+
+      const storedAddresses = readAddresses();
+      const primaryAddress =
+        storedAddresses.find((addr) => addr.default) || storedAddresses[0];
+
+      setShippingData((prev) => ({
+        ...prev,
+        ...base,
+        ...(primaryAddress
+          ? {
+              fullName: primaryAddress.name || base.fullName || prev.fullName,
+              phone: primaryAddress.phone || prev.phone,
+              address: primaryAddress.address || prev.address,
+              city: primaryAddress.city || prev.city,
+              postalCode: primaryAddress.zip || prev.postalCode,
+            }
+          : {}),
+      }));
+    } catch (err) {
+      console.warn("Could not load saved shipping", err);
+    }
+  }, [shippingStorageKey, user?.name, user?.email]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(shippingStorageKey, JSON.stringify(shippingData));
+    } catch (err) {
+      console.warn("Could not persist shipping", err);
+    }
+  }, [shippingData, shippingStorageKey]);
 
   const currencySymbol = cartItems[0]?.currency || "₹";
   const subtotal = useMemo(
@@ -67,8 +129,13 @@ export default function CheckoutPage() {
     setShippingData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePlaceOrder = (event) => {
+  const handlePlaceOrder = async (event) => {
     event.preventDefault();
+    if (!isAuthenticated) {
+      toast.error("Please login to complete checkout.");
+      navigate("/login", { state: { redirect: location.pathname } });
+      return;
+    }
     if (placing) return;
     if (!cartItems.length) {
       toast.error("Add at least one item to place an order.");
@@ -82,42 +149,140 @@ export default function CheckoutPage() {
 
     setPlacing(true);
     try {
-      const number = generateOrderNumber();
-      const order = {
-        id: number,
-        number,
-        status: "pending",
+      const payload = {
         paymentMethod,
         totals: { subtotal, shippingFee, total },
         shipping: shippingData,
         items: cartItems.map((item) => ({
           id: item.id || item.key,
+          sku: item.sku,
           name: item.name,
           price: Number(item.price) || 0,
           currency: item.currency || currencySymbol,
           quantity: item.quantity || 1,
         })),
-        customer: {
-          name: shippingData.fullName,
-          email: shippingData.email,
-          phone: shippingData.phone,
-        },
-        createdAt: new Date().toISOString(),
       };
-      addOrder(order);
-      setOrderId(number);
+      const response = await authFetch(`${API_BASE}/orders`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(text || "Unable to place the order");
+      }
+      const data = await response.json();
+      const savedNumber = data?.number || data?.id;
+      setOrderId(savedNumber);
       clearCart();
-      toast.success(`Order ${number} saved for dashboard review.`);
+      toast.success(`Order ${savedNumber || ""} saved for dashboard review.`);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("dashboard:data:refresh"));
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to save the order. Please retry.");
+      toast.error(error?.message || "Unable to save the order. Please retry.");
     } finally {
       setPlacing(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--accent)] text-[var(--muted-foreground)]">
+        Loading checkout...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[var(--accent)] text-[var(--primary)]">
+        <div className="mx-auto w-full max-w-3xl px-4 pt-24 pb-12 lg:pt-32 space-y-6 text-center">
+          <Badge
+            variant="outline"
+            className="border-[var(--secondary-300)] text-[var(--secondary-foreground)] uppercase tracking-widest"
+          >
+            Sign in required
+          </Badge>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--primary)]">Login to complete checkout</h1>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Please sign in or create an account to place your order and save your shipping details for next time.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/login"
+              state={{ redirect: location.pathname }}
+              className="inline-flex items-center justify-center rounded-full bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-[var(--primary-foreground)] shadow hover:bg-[var(--primary-700)] transition-colors"
+            >
+              Login to continue
+            </Link>
+            <Link
+              to="/signup"
+              state={{ redirect: location.pathname }}
+              className="inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] px-5 py-3 text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+            >
+              Create account
+            </Link>
+            <Link
+              to="/cart"
+              className="inline-flex items-center justify-center rounded-full px-4 py-3 text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)] hover:text-[var(--primary)]"
+            >
+              Back to cart
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-left shadow-sm">
+            <h3 className="mb-3 text-lg font-semibold text-[var(--primary)]">Order summary</h3>
+            <ul className="space-y-2 border-b border-[var(--border)] pb-3 text-sm">
+              {cartItems.length ? (
+                cartItems.map((item) => {
+                  const itemPrice = Number(item.price);
+                  const priceLabel = Number.isFinite(itemPrice) ? formatMoney(itemPrice) : "0";
+                  return (
+                    <li key={item.key} className="flex items-center justify-between">
+                      <span className="text-[var(--muted-foreground)]">{item.name}</span>
+                      <span className="text-[var(--primary)]">
+                        {item.currency || currencySymbol}
+                        {priceLabel}
+                      </span>
+                    </li>
+                  );
+                })
+              ) : (
+                <li className="text-[var(--muted-foreground)] italic">Your cart is empty.</li>
+              )}
+            </ul>
+            <div className="mt-3 space-y-1 text-sm text-[var(--muted-foreground)]">
+              <div className="flex items-center justify-between">
+                <span>Subtotal</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(subtotal)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Shipping</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(shippingFee)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between font-semibold text-[var(--primary)]">
+                <span>Total</span>
+                <span>
+                  {currencySymbol}
+                  {formatMoney(total)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--accent)] text-[var(--primary)]">

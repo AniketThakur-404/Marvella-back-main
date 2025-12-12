@@ -110,30 +110,33 @@ const ProductCard = () => {
 
               {/* Image area */}
               <div className="relative flex flex-1 items-center justify-center px-4 pt-12 pb-2">
-                {/* Stub arrows (no-op for now) */}
-                <button
-                  type="button"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white/80 hover:bg-white"
-                  onClick={(e) => e.preventDefault()}
-                  aria-label="Previous image"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
+                <div className="relative flex items-center justify-center w-full">
+                  {/* Left arrow */}
+                  <button
+                    type="button"
+                    className="absolute left-0 z-10 flex items-center justify-center p-1 rounded-full bg-white/80 hover:bg-white"
+                    onClick={(e) => e.preventDefault()}
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
 
-                <img
-                  src={product.cardHero}
-                  alt={product.name}
-                  className="max-h-[500px] w-full object-contain"
-                />
+                  <img
+                    src={product.cardHero}
+                    alt={product.name}
+                    className="max-h-[500px] w-full object-contain"
+                  />
 
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white/80 hover:bg-white"
-                  onClick={(e) => e.preventDefault()}
-                  aria-label="Next image"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                  {/* Right arrow */}
+                  <button
+                    type="button"
+                    className="absolute right-0 z-10 flex items-center justify-center p-1 rounded-full bg-white/80 hover:bg-white"
+                    onClick={(e) => e.preventDefault()}
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Details */}

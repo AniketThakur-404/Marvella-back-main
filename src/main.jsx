@@ -5,15 +5,18 @@ import App from './App.jsx'
 import './index.css'
 import { AuthProvider } from '@/context/AuthContext'
 import { ShopProvider } from '@/context/ShopContext'
+import { LanguageProvider } from '@/context/LanguageContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <ShopProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ShopProvider>
+      <LanguageProvider>
+        <ShopProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ShopProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>,
 )
