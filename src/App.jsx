@@ -84,6 +84,16 @@ const App = () => {
   const hideFooterOn = ["/cart", "/checkout"]
   const shouldHideFooter = hideLayout || hideFooterOn.includes(location.pathname)
 
+  // Ensure AR routes keep their rounded UI (opt out of global sharp edges)
+  React.useEffect(() => {
+    const body = document.body
+    if (isARRoute) {
+      body.classList.add("ar-radius")
+    } else {
+      body.classList.remove("ar-radius")
+    }
+  }, [isARRoute])
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       {!hideLayout && <Navbar />}

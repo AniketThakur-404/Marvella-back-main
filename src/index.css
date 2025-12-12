@@ -224,9 +224,9 @@ body.dashboard-form-lock {
   }
 }
 
-/* Force sharp edges sitewide */
+/* Force sharp edges sitewide, but exclude AR pages */
 @layer base {
-  *, *::before, *::after {
+  body:not(.ar-radius) *, body:not(.ar-radius) *::before, body:not(.ar-radius) *::after {
     border-radius: 0 !important;
   }
 }
