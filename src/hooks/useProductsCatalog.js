@@ -20,7 +20,13 @@ export function useProductsCatalog() {
   const [error, setError] = useState(cache.error || "");
 
   useEffect(() => {
-    // If we already have products (fallback or fetched), don't refetch.
+    // Always seed state with fallback locally to prevent empty grids on static deploys.
+    if (!cache.data && fallbackProducts?.length) {
+      cache.data = fallbackProducts;
+      setProducts(fallbackProducts);
+    }
+
+    // If we already have products (fallback or fetched), don't refetch when API_BASE is missing.
     if (!API_BASE || cache.data) {
       setLoading(false);
       return;
