@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import fallbackProducts from "@/data/cevonneProducts";
 
 const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
 const cache = {
-  data: null,
+  data: fallbackProducts || null,
   error: null,
   promise: null,
 };
@@ -19,12 +20,11 @@ export function useProductsCatalog() {
   const [error, setError] = useState(cache.error || "");
 
   useEffect(() => {
-    if (!API_BASE) {
+    // If we already have products (fallback or fetched), don't refetch.
+    if (!API_BASE || cache.data) {
       setLoading(false);
-      setError("Backend URL not configured");
       return;
     }
-    if (cache.data) return;
     if (cache.promise) {
       cache.promise.then(setProducts).catch((err) => setError(err?.message || "Failed to load products"));
       return;
@@ -35,12 +35,13 @@ export function useProductsCatalog() {
         if (!res.ok) throw new Error("Failed to load products");
         const payload = await res.json();
         const items = normalizeItems(payload);
-        cache.data = items;
-        return items;
+        cache.data = items.length ? items : fallbackProducts;
+        return cache.data;
       })
       .catch((err) => {
         cache.error = err?.message || "Failed to load products";
-        throw err;
+        cache.data = fallbackProducts;
+        return cache.data;
       });
 
     cache.promise = fetcher;
