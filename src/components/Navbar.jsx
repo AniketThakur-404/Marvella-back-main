@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { Menu, Search, Heart, User, Phone, ShoppingCart } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
@@ -13,7 +13,9 @@ const NAV_H_DESKTOP = "md:h-20" // 80px
 const Navbar = () => {
   const [solid, setSolid] = useState(false)
   const ticking = useRef(false)
-  const THRESHOLD = 10
+  const THRESHOLD = 24
+  const location = useLocation()
+  const isProductPage = location.pathname.startsWith("/product")
 
   const { cartItems, wishlist, openDrawer } = useShop()
   const { t } = useLanguage()
@@ -23,14 +25,14 @@ const Navbar = () => {
       if (ticking.current) return
       ticking.current = true
       requestAnimationFrame(() => {
-        setSolid(window.scrollY > THRESHOLD) // always true with THRESHOLD -1
+        setSolid(isProductPage || window.scrollY > THRESHOLD)
         ticking.current = false
       })
     }
     onScroll()
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+  }, [isProductPage])
 
   const textClass = "text-[var(--foreground)]"
 
@@ -39,9 +41,14 @@ const Navbar = () => {
       <header
         className={`hidden md:block fixed inset-x-0 top-0 z-50 w-full transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300
         ${solid
-            ? "bg-[var(--background)]/95 border-b border-[var(--border)] backdrop-blur supports-[backdrop-filter]:bg-[var(--background)] shadow-sm"
-            : "bg-transparent border-transparent"
+            ? "bg-[var(--background)]/95 border-transparent backdrop-blur supports-[backdrop-filter]:bg-[var(--background)] shadow-none"
+            : "bg-transparent border-transparent shadow-none"
           }`}
+        style={{
+          backgroundColor: solid ? "rgba(255,255,255,0.95)" : "transparent",
+          boxShadow: "none",
+          borderBottom: "none",
+        }}
       >
         <div
           className={`mx-auto flex max-w-screen-2xl items-center justify-between px-3 md:px-6 ${NAV_H_MOBILE} ${NAV_H_DESKTOP}`}

@@ -1,5 +1,5 @@
-// src/components/pages/ProductDetails.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿// src/components/pages/ProductDetails.jsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import {
   Star, StarHalf, Truck, ShieldCheck, Recycle, Sparkles, X,
@@ -24,8 +24,11 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useShop } from "@/context/ShopContext";
+import { useAuth } from "@/context/AuthContext";
+import sampleProduct from "@/data/sampleProduct.json";
 
 const BASE_PRODUCT = cevonneProducts?.[0] || {};
+const SAMPLE_CONTENT = sampleProduct || {};
 const BASE_GALLERY = Array.isArray(BASE_PRODUCT?.media?.gallery)
   ? BASE_PRODUCT.media.gallery.map((g) => g.url || g.id).filter(Boolean)
   : [];
@@ -46,6 +49,7 @@ const findSampleProduct = (slug = "") => {
 };
 
 const API_BASE = (import.meta.env.VITE_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
+const REMOTE_PRODUCTS_ENABLED = Boolean(API_BASE) && import.meta.env.VITE_ENABLE_REMOTE_PRODUCTS === "true";
 
 /* ---------- Asset resolvers (images) ---------- */
 const IMG = import.meta.glob("/src/assets/images/**/*", {
@@ -104,6 +108,9 @@ const RatingStars = ({ value = 0 }) => {
     </div>
   );
 };
+
+
+
 
 /* Ultra-smooth crossfade (images ignore pointer events so clicks reach the chip) */
 const fadeMs = 160;
@@ -245,6 +252,20 @@ const buildProductView = (source = {}) => {
   const desc = source.description || {};
   const ingredientsData = source.ingredients || {};
   const basePricing = BASE_PRODUCT.pricing || {};
+  const fallbackBenefits = cleanList(BASE_PRODUCT.benefits, cleanList(SAMPLE_CONTENT.benefits, []));
+  const fallbackClaims = cleanList(BASE_PRODUCT.claims, cleanList(SAMPLE_CONTENT.claims, []));
+  const fallbackFaqs = Array.isArray(BASE_PRODUCT.faqs) && BASE_PRODUCT.faqs.length
+    ? BASE_PRODUCT.faqs
+    : Array.isArray(SAMPLE_CONTENT.faqs)
+      ? SAMPLE_CONTENT.faqs
+      : [];
+  const fallbackHowToUse = cleanList(BASE_PRODUCT.how_to_use, cleanList(SAMPLE_CONTENT.how_to_use, []));
+  const fallbackIngredientsHighlight = SAMPLE_CONTENT.ingredients_highlight ?? [];
+  const fallbackSupportingIngredients = Array.isArray(SAMPLE_CONTENT.ingredients_supporting)
+    ? SAMPLE_CONTENT.ingredients_supporting
+    : Array.isArray(SAMPLE_CONTENT.ingredients?.supportingIngredients)
+      ? SAMPLE_CONTENT.ingredients.supportingIngredients
+      : [];
 
   const galleryFromImages = Array.isArray(source.images)
     ? source.images.map((img) => img.url || img.id || img.src).filter(Boolean)
@@ -258,30 +279,42 @@ const buildProductView = (source = {}) => {
     pickGallery(experience.gallery) ??
     pickGallery(source.gallery) ??
     pickGallery(galleryFromImages) ??
+    pickGallery(SAMPLE_CONTENT.gallery) ??
     BASE_GALLERY;
 
   const theme = {
+    ...SAMPLE_CONTENT.theme,
     ...BASE_PRODUCT.theme,
     ...(source.theme || {}),
     ...(experience.theme || {}),
   };
   const hero = {
+    ...SAMPLE_CONTENT.hero,
     ...BASE_PRODUCT.hero,
     ...(source.hero || {}),
     ...(experience.hero || {}),
-    image: media.heroImage ?? source.hero?.image ?? experience.hero?.image ?? BASE_PRODUCT.media?.heroImage
+    image: media.heroImage ?? source.hero?.image ?? experience.hero?.image ?? BASE_PRODUCT.media?.heroImage ?? SAMPLE_CONTENT.hero?.image
   };
 
   const badges = cleanList(
     source.badges?.map(b => b.label ?? b) ?? experience.badges ?? source.badges,
-    BASE_PRODUCT.badges || []
+    cleanList(BASE_PRODUCT.badges, cleanList(SAMPLE_CONTENT.badges, []))
   );
-  const benefits = cleanList(experience.benefits ?? source.benefits, BASE_PRODUCT.benefits || []);
+  const benefits = cleanList(
+    experience.benefits ?? source.benefits,
+    fallbackBenefits
+  );
 
   const ingredients =
     ingredientsData.keyActives
       ? ingredientsData.keyActives.map(k => ({ name: k.name, why: k.description }))
-      : (experience.ingredientsHighlight ?? experience.ingredients_highlight ?? source.ingredients_highlight ?? BASE_PRODUCT.ingredients_highlight ?? []);
+      : (
+        experience.ingredientsHighlight ??
+        experience.ingredients_highlight ??
+        source.ingredients_highlight ??
+        BASE_PRODUCT.ingredients_highlight ??
+        fallbackIngredientsHighlight
+      );
 
   const supportingIngredients =
     Array.isArray(ingredientsData.supportingIngredients)
@@ -290,30 +323,32 @@ const buildProductView = (source = {}) => {
         ? source.ingredients_supporting
         : Array.isArray(experience.ingredients_supporting)
           ? experience.ingredients_supporting
-          : [];
+          : fallbackSupportingIngredients;
 
-  const ingredientsNote = ingredientsData.note ?? source.ingredientsNote ?? experience.ingredientsNote ?? "";
+  const ingredientsNote = ingredientsData.note ?? source.ingredientsNote ?? experience.ingredientsNote ?? SAMPLE_CONTENT.ingredientsNote ?? "";
 
   const howToUse = cleanList(
     experience.howToUse ?? experience.how_to_use ?? source.how_to_use ?? source.howToUse,
-    BASE_PRODUCT.how_to_use || []
+    fallbackHowToUse
   );
-  const claims = cleanList(experience.claims ?? source.claims, BASE_PRODUCT.claims || []);
+  const claims = cleanList(experience.claims ?? source.claims, fallbackClaims);
   const faqs = Array.isArray(experience.faqs ?? source.faqs)
     ? experience.faqs ?? source.faqs
-    : BASE_PRODUCT.faqs || [];
-  const tags = Array.isArray(source.tags) ? source.tags : [];
-  const brand = source.brand ?? BASE_PRODUCT.brand;
-  const productType = source.type ?? source.productType ?? BASE_PRODUCT.productType;
+    : fallbackFaqs;
+  const tags = Array.isArray(source.tags) ? source.tags : Array.isArray(SAMPLE_CONTENT.tags) ? SAMPLE_CONTENT.tags : [];
+  const brand = source.brand ?? BASE_PRODUCT.brand ?? SAMPLE_CONTENT.brand;
+  const productType = source.type ?? source.productType ?? BASE_PRODUCT.productType ?? SAMPLE_CONTENT.productType;
 
   const reviewsList = Array.isArray(source?.reviewsList)
     ? source.reviewsList
     : Array.isArray(source?.reviews)
       ? source.reviews
-      : [];
+      : Array.isArray(SAMPLE_CONTENT.reviewsList)
+        ? SAMPLE_CONTENT.reviewsList
+        : [];
   const reviewCount = Array.isArray(source?.reviews)
     ? source.reviews.length
-    : (experience.reviewCount ?? source.reviewCount ?? source.reviews ?? BASE_PRODUCT.reviews);
+    : (experience.reviewCount ?? source.reviewCount ?? source.reviews ?? BASE_PRODUCT.reviews ?? SAMPLE_CONTENT.reviews);
 
   return {
     ...BASE_PRODUCT,
@@ -321,10 +356,17 @@ const buildProductView = (source = {}) => {
     ...experience,
     title: source.name ?? experience.title ?? source.title ?? BASE_PRODUCT.title ?? BASE_PRODUCT.name,
     name: source.name ?? experience.name ?? BASE_PRODUCT.title ?? BASE_PRODUCT.name,
-    subtitle: desc.headline ?? experience.subtitle ?? source.subtitle ?? BASE_PRODUCT.subtitle ?? BASE_PRODUCT.description?.headline,
-    categoryPath: experience.categoryPath ?? source.categoryPath ?? BASE_PRODUCT.categoryPath,
+    subtitle: desc.headline ?? experience.subtitle ?? source.subtitle ?? BASE_PRODUCT.subtitle ?? BASE_PRODUCT.description?.headline ?? SAMPLE_CONTENT.subtitle ?? SAMPLE_CONTENT.description?.headline,
+    categoryPath: experience.categoryPath ?? source.categoryPath ?? BASE_PRODUCT.categoryPath ?? SAMPLE_CONTENT.categoryPath,
     longDescription:
-      desc.body ?? experience.longDescription ?? source.longDescription ?? source.description ?? BASE_PRODUCT.longDescription ?? BASE_PRODUCT.description?.body,
+      desc.body ??
+      experience.longDescription ??
+      source.longDescription ??
+      source.description ??
+      BASE_PRODUCT.longDescription ??
+      BASE_PRODUCT.description?.body ??
+      SAMPLE_CONTENT.longDescription ??
+      SAMPLE_CONTENT.description?.body,
     hero,
     theme,
     gallery,
@@ -339,25 +381,25 @@ const buildProductView = (source = {}) => {
     tags,
     brand,
     productType,
-    shipping: experience.shipping ?? source.shipping ?? BASE_PRODUCT.shipping,
-    returns: experience.returns ?? source.returns ?? BASE_PRODUCT.returns,
-    reviews: Number.isFinite(reviewCount) ? reviewCount : Number(reviewCount) || 0,
+    shipping: experience.shipping ?? source.shipping ?? BASE_PRODUCT.shipping ?? SAMPLE_CONTENT.shipping ?? "Free shipping on prepaid orders",
+    returns: experience.returns ?? source.returns ?? BASE_PRODUCT.returns ?? SAMPLE_CONTENT.returns ?? "Easy 7-day returns on unopened items.",
+    reviews: Number.isFinite(reviewCount) ? reviewCount : Number(reviewCount) || reviewsList.length || 0,
     rating:
       Number.isFinite(experience.rating) ? experience.rating
         : Number.isFinite(source.averageRating) ? source.averageRating
           : Number.isFinite(source.rating) ? source.rating
-            : Number(BASE_PRODUCT.rating ?? BASE_PRODUCT.averageRating ?? 0) || 0,
-    mrp: pricing.originalValue ?? source.mrp ?? source.compareAtPrice ?? basePricing.originalValue ?? BASE_PRODUCT.mrp ?? BASE_PRODUCT.price,
-    price: pricing.price ?? source.price ?? source.basePrice ?? basePricing.price ?? BASE_PRODUCT.price,
-    currency: pricing.currency ?? source.currency ?? basePricing.currency ?? BASE_PRODUCT.currency ?? "₹",
+            : Number(BASE_PRODUCT.rating ?? BASE_PRODUCT.averageRating ?? SAMPLE_CONTENT.rating ?? SAMPLE_CONTENT.averageRating ?? 0) || 0,
+    mrp: pricing.originalValue ?? source.mrp ?? source.compareAtPrice ?? basePricing.originalValue ?? BASE_PRODUCT.mrp ?? BASE_PRODUCT.price ?? SAMPLE_CONTENT.mrp ?? SAMPLE_CONTENT.price,
+    price: pricing.price ?? source.price ?? source.basePrice ?? basePricing.price ?? BASE_PRODUCT.price ?? SAMPLE_CONTENT.price,
+    currency: pricing.currency ?? source.currency ?? basePricing.currency ?? BASE_PRODUCT.currency ?? SAMPLE_CONTENT.currency ?? "â‚¹",
     reviewsList,
-    finish: source?.finish ?? BASE_PRODUCT.finish ?? "soft-matte",
-    coverage: source?.coverage ?? BASE_PRODUCT.coverage ?? "full-pigment",
-    fragrance: source?.fragrance ?? BASE_PRODUCT.fragrance ?? "Fragrance-free",
-    videoTitle: experience.videoTitle ?? BASE_PRODUCT.experience?.videoTitle ?? "Cevonne",
-    videoDescription: experience.videoDescription ?? BASE_PRODUCT.experience?.videoDescription ?? "Velvet matte color and intense longwear adorn lips with immediate moisture and rich tones in 28 irresistible shades.",
-    ingredientsTitle: experience.ingredientsTitle ?? BASE_PRODUCT.experience?.ingredientsTitle ?? "Powered by Science",
-    videoUrl: experience.videoUrl ?? source.videoUrl ?? BASE_PRODUCT.videoUrl,
+    finish: source?.finish ?? BASE_PRODUCT.finish ?? SAMPLE_CONTENT.finish ?? "soft-matte",
+    coverage: source?.coverage ?? BASE_PRODUCT.coverage ?? SAMPLE_CONTENT.coverage ?? "full-pigment",
+    fragrance: source?.fragrance ?? BASE_PRODUCT.fragrance ?? SAMPLE_CONTENT.fragrance ?? "Fragrance-free",
+    videoTitle: experience.videoTitle ?? BASE_PRODUCT.experience?.videoTitle ?? SAMPLE_CONTENT.videoTitle ?? "Cevonne",
+    videoDescription: experience.videoDescription ?? BASE_PRODUCT.experience?.videoDescription ?? SAMPLE_CONTENT.videoDescription ?? "Velvet matte color and intense longwear adorn lips with immediate moisture and rich tones in 28 irresistible shades.",
+    ingredientsTitle: experience.ingredientsTitle ?? BASE_PRODUCT.experience?.ingredientsTitle ?? SAMPLE_CONTENT.ingredientsTitle ?? "Powered by Science",
+    videoUrl: experience.videoUrl ?? source.videoUrl ?? BASE_PRODUCT.videoUrl ?? SAMPLE_CONTENT.videoUrl,
     shades: normalizeShades(source.shades, experience.shades, gallery, source),
   };
 };
@@ -378,25 +420,6 @@ export default function ProductDetails({ data }) {
 
   /* ===== HOVER REVEAL STATE (NEW FEATURE) ===== */
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
-  
-  // Mapped to your provided screenshot images as placeholders
-  const featureList = [
-    {
-      label: "hydrates",
-      img: resolveAsset("product1.png"), // Using your available images
-      color: "text-[#3f6212]" // Deep green
-    },
-    {
-      label: "nourishes",
-      img: resolveAsset("product2.png"),
-      color: "text-[#3f6212]"
-    },
-    {
-      label: "replenishes",
-      img: resolveAsset("product3.png"),
-      color: "text-[#3f6212]"
-    },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -417,7 +440,7 @@ export default function ProductDetails({ data }) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!id || !API_BASE) {
+    if (!id || !REMOTE_PRODUCTS_ENABLED) {
       setLoadingProduct(false);
       return undefined;
     }
@@ -448,13 +471,25 @@ export default function ProductDetails({ data }) {
     return () => {
       cancelled = true;
     };
-  }, [id, API_BASE]);
+  }, [id, API_BASE, REMOTE_PRODUCTS_ENABLED]);
 
-  const fallbackProduct = findSampleProduct(id) || BASE_PRODUCT;
+  const fallbackProduct = findSampleProduct(id) || SAMPLE_CONTENT || BASE_PRODUCT;
   const sourceProduct = remoteProduct || preloadedProduct || fallbackProduct;
   const p = useMemo(() => buildProductView(sourceProduct), [sourceProduct]);
   const crumbs = Array.isArray(p.categoryPath) ? p.categoryPath : p.category ? [p.category] : [];
   const { cartItems, wishlist, addToCart, toggleWishlist, openDrawer } = useShop();
+  const { user, isAuthenticated, authFetch } = useAuth();
+
+  const [reviewsData, setReviewsData] = useState(() =>
+    Array.isArray(p.reviewsList) ? p.reviewsList : []
+  );
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: "", comment: "" });
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(false);
 
   if (loadingProduct && !sourceProduct) {
     return (
@@ -474,16 +509,22 @@ export default function ProductDetails({ data }) {
     );
   }
 
+  useEffect(() => {
+    setReviewsData(Array.isArray(p.reviewsList) ? p.reviewsList : []);
+    setEditingReviewId(null);
+    setReviewForm({ rating: 5, title: "", comment: "" });
+  }, [p.reviewsList, p.id]);
+
   /* Tone & backgrounds */
   const WHITE_BG = "#ffffff";
-  const defaultBg = WHITE_BG;
-  const bgScenes = {
-    hero: WHITE_BG,
-    features: WHITE_BG,
-    ingredients: WHITE_BG,
-    video: WHITE_BG,
-    shades: WHITE_BG,
-    reviews: WHITE_BG,
+  const defaultBg = p?.theme?.defaultBg || WHITE_BG;
+  const bgScenes = p?.theme?.bgScenes || SAMPLE_CONTENT.theme?.bgScenes || {
+    hero: defaultBg,
+    features: defaultBg,
+    ingredients: defaultBg,
+    video: defaultBg,
+    shades: defaultBg,
+    reviews: defaultBg,
   };
   const bgTone = p?.theme?.bgTone || {
     hero: "light", features: "light", ingredients: "light", video: "dark", shades: "light", reviews: "light"
@@ -569,7 +610,7 @@ export default function ProductDetails({ data }) {
     gallery.forEach((src) => { const i = new Image(); i.src = src; });
   }, [gallery]);
 
-  // drag / swipe / wheel — but ignore interactive children so links work on desktop too
+  // drag / swipe / wheel â€” but ignore interactive children so links work on desktop too
   const heroRef = useRef(null);
   useEffect(() => {
     const el = heroRef.current;
@@ -622,6 +663,43 @@ export default function ProductDetails({ data }) {
 
   const heroSrc = gallery[activeImage] || (HERO.image ? resolveAsset(HERO.image) : "");
 
+  const featureList = useMemo(() => {
+    const benefitLabels = Array.isArray(p.benefits) ? p.benefits.slice(0, 3) : [];
+    const ingredientLabels = Array.isArray(p.ingredients_highlight)
+      ? p.ingredients_highlight.slice(0, 3).map((ing) => ing?.name).filter(Boolean)
+      : [];
+    const labels = (benefitLabels.length ? benefitLabels : ingredientLabels.length ? ingredientLabels : ["Hydrates", "Nourishes", "Replenishes"])
+      .map((label) => (typeof label === "string" ? label : `${label}`));
+
+    const images = [
+      p.shades?.[0]?.thumb,
+      p.shades?.[1]?.thumb,
+      p.shades?.[2]?.thumb,
+      p.hero?.image,
+      gallery[0],
+      SAMPLE_CONTENT.gallery?.[0],
+      "product1.png",
+      "product2.png",
+      "product3.png",
+    ]
+      .map(resolveAsset)
+      .filter(Boolean);
+
+    const palette = ["text-[#3f6212]", "text-[#14532d]", "text-[#166534]", "text-[#1d4ed8]"];
+
+    return labels.map((label, idx) => ({
+      label,
+      img: images[idx % images.length] || resolveAsset("product1.png"),
+      color: palette[idx % palette.length],
+    }));
+  }, [gallery, p.benefits, p.hero?.image, p.ingredients_highlight, p.shades]);
+
+  useEffect(() => {
+    if (featureList.length && activeFeatureIndex >= featureList.length) {
+      setActiveFeatureIndex(0);
+    }
+  }, [featureList.length, activeFeatureIndex]);
+
   /* price, badges, etc. */
   const [qty, setQty] = useState(1);
   const priceBlock = useMemo(() => {
@@ -646,10 +724,15 @@ export default function ProductDetails({ data }) {
     [p.ingredients_highlight]
   );
   const fullIngredientsText = useMemo(() => {
-    if (Array.isArray(p.ingredients_supporting)) return p.ingredients_supporting.join(", ");
+    if (Array.isArray(p.ingredients_supporting) && p.ingredients_supporting.length) return p.ingredients_supporting.join(", ");
     if (typeof p.ingredients_supporting === "string") return p.ingredients_supporting;
+    if (Array.isArray(p.ingredients_highlight) && p.ingredients_highlight.length) {
+      return p.ingredients_highlight
+        .map((it) => [it.name, it.why].filter(Boolean).join(" â€“ "))
+        .join("\n");
+    }
     return "";
-  }, [p.ingredients_supporting]);
+  }, [p.ingredients_highlight, p.ingredients_supporting]);
 
   /* shades map + choose */
   const [activeShade, setActiveShade] = useState(p.shades?.[0]?.key || "");
@@ -666,6 +749,10 @@ export default function ProductDetails({ data }) {
       acc[s.key] = { ...s, img: s.thumb ? resolveAsset(s.thumb) : null };
       return acc;
     }, {}), [p.shades]
+  );
+  const shadeKeys = useMemo(
+    () => (p.shades || []).map((s) => String(s.key || s.id || "").toLowerCase()).filter(Boolean),
+    [p.shades]
   );
   useEffect(() => {
     const shade = shadeMap[activeShade];
@@ -691,13 +778,17 @@ export default function ProductDetails({ data }) {
   const shadeImg = shadeDetails?.img || gallery[0] || heroSrc;
   const shadeItem = shadeKey
     ? {
+      id: p.id || p.slug || shadeKey,
       key: shadeKey,
+      sku: shadeKey,
+      productId: p.id || p.slug || shadeKey,
+      productName: p.name || p.title || activeShadeLabel,
       name: activeShadeLabel,
       color: shadeDetails?.hex,
       image: shadeImg,
       thumb: shadeImg,
       price: Number.isFinite(priceValue) ? priceValue : 0,
-      currency: p.currency || "₹",
+      currency: p.currency || "â‚¹",
     }
     : null;
 
@@ -724,35 +815,172 @@ export default function ProductDetails({ data }) {
   };
 
   /* reviews */
+  const reviewsApiEnabled = Boolean(API_BASE && p.id);
+
+  const fetchReviews = useCallback(async () => {
+    if (!reviewsApiEnabled) return [];
+    setReviewsLoading(true);
+    setReviewsError("");
+    try {
+      const response = await authFetch(
+        `${API_BASE}/reviews?productId=${encodeURIComponent(p.id)}&status=ALL`
+      );
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(text || "Failed to load reviews");
+      }
+      const payload = await response.json();
+      const list = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload)
+          ? payload
+          : [];
+      setReviewsData(list);
+      return list;
+    } catch (err) {
+      setReviewsError(err?.message || "Unable to load reviews");
+      return [];
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [API_BASE, authFetch, p.id, reviewsApiEnabled]);
+
+  useEffect(() => {
+    if (!reviewsApiEnabled) return;
+    fetchReviews();
+  }, [fetchReviews, reviewsApiEnabled]);
+
+  useEffect(() => {
+    if (!reviewsApiEnabled || !isAuthenticated) {
+      setHasPurchased(false);
+      return;
+    }
+    let cancelled = false;
+    const verify = async () => {
+      setCheckingPurchase(true);
+      try {
+        const res = await authFetch(`${API_BASE}/orders/my`);
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(txt || "Unable to verify purchase");
+        }
+        const data = await res.json();
+        const orders = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        const pid = String(p.id || "").toLowerCase();
+        const slug = String(p.slug || "").toLowerCase();
+        const pname = String(p.name || p.title || "").toLowerCase();
+        const purchased = orders.some((order) =>
+          (order.items || []).some((item) => {
+            const itemId = String(item.productId || item.id || "").toLowerCase();
+            const sku = String(item.sku || item.key || "").toLowerCase();
+            const itemName = String(item.name || "").toLowerCase();
+            return (
+              (pid && itemId === pid) ||
+              (slug && sku === slug) ||
+              (sku && shadeKeys.includes(sku)) ||
+              (itemId && shadeKeys.includes(itemId)) ||
+              (pname && itemName.includes(pname))
+            );
+          })
+        );
+        if (!cancelled) setHasPurchased(purchased);
+      } catch (_err) {
+        if (!cancelled) setHasPurchased(false);
+      } finally {
+        if (!cancelled) setCheckingPurchase(false);
+      }
+    };
+    verify();
+    return () => {
+      cancelled = true;
+    };
+  }, [API_BASE, authFetch, isAuthenticated, p.id, p.slug, p.name, p.title, reviewsApiEnabled, shadeKeys]);
+
+  const normalizedReviews = useMemo(() => {
+    return (Array.isArray(reviewsData) ? reviewsData : []).map((r, idx) => {
+      const dateVal = r.date || r.createdAt || r.updatedAt;
+      const parsedDate = dateVal ? new Date(dateVal) : null;
+      const safeDate =
+        parsedDate && !Number.isNaN(parsedDate.valueOf())
+          ? parsedDate.toISOString().split("T")[0]
+          : "";
+      return {
+        id: r.id || r._id || `local-${idx}`,
+        rating: Number(r.rating) || 0,
+        title: r.title || r.heading || "",
+        comment: r.comment || r.body || r.text || "",
+        author: r.author || r.user?.name || r.user?.email || "Anonymous",
+        date: safeDate,
+        status: r.status || "PUBLISHED",
+        userId: r.userId || r.user?.id,
+        verified: Boolean(r.verified || r.isVerified || r.verifiedBuyer),
+      };
+    });
+  }, [reviewsData]);
+
+  const visibleReviews = useMemo(
+    () =>
+      normalizedReviews.filter(
+        (r) => !r.status || r.status === "PUBLISHED" || (user?.id && r.userId === user.id)
+      ),
+    [normalizedReviews, user?.id]
+  );
+
+  const myReview = useMemo(
+    () => normalizedReviews.find((r) => user?.id && r.userId === user.id),
+    [normalizedReviews, user?.id]
+  );
+
+  useEffect(() => {
+    if (myReview && !editingReviewId) {
+      setReviewForm({
+        rating: myReview.rating || 5,
+        title: myReview.title || "",
+        comment: myReview.comment || "",
+      });
+    }
+  }, [myReview, editingReviewId]);
+
   const [sortOrder, setSortOrder] = useState("newest");
   const [filterRating, setFilterRating] = useState(0);
+
   const filteredAndSortedReviews = useMemo(() => {
-    const baseReviews = Array.isArray(p.reviewsList) ? p.reviewsList : [];
-    let reviews = [...baseReviews];
-    if (filterRating > 0) reviews = reviews.filter((r) => r.rating === filterRating);
+    let reviews = [...visibleReviews];
+    if (filterRating > 0) reviews = reviews.filter((r) => Math.round(r.rating) === filterRating);
     switch (sortOrder) {
-      case "newest": reviews.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
-      case "oldest": reviews.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
-      case "highest": reviews.sort((a, b) => b.rating - a.rating); break;
-      case "lowest": reviews.sort((a, b) => a.rating - b.rating); break;
-      default: break;
+      case "newest":
+        reviews.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        break;
+      case "oldest":
+        reviews.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+        break;
+      case "highest":
+        reviews.sort((a, b) => b.rating - a.rating);
+        break;
+      case "lowest":
+        reviews.sort((a, b) => a.rating - b.rating);
+        break;
+      default:
+        break;
     }
     return reviews;
-  }, [p.reviewsList, sortOrder, filterRating]);
+  }, [visibleReviews, sortOrder, filterRating]);
 
   const ratingDistribution = useMemo(() => {
     const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    const reviewList = Array.isArray(p.reviewsList) ? p.reviewsList : [];
+    const reviewList = visibleReviews.filter((r) => r.status === "PUBLISHED" || !r.status);
     const total = reviewList.length;
     if (!total) {
-      return Object.keys(dist).sort((a, b) => b - a).map(stars => ({
-        stars,
-        count: 0,
-        percent: 0
-      }));
+      return Object.keys(dist)
+        .sort((a, b) => b - a)
+        .map((stars) => ({
+          stars,
+          count: 0,
+          percent: 0,
+        }));
     }
     reviewList.forEach((r) => {
-      const floored = Math.floor(r.rating);
+      const floored = Math.max(1, Math.min(5, Math.floor(r.rating)));
       if (dist[floored] !== undefined) dist[floored]++;
     });
     return Object.entries(dist)
@@ -760,9 +988,103 @@ export default function ProductDetails({ data }) {
       .map(([stars, count]) => ({
         stars,
         count,
-        percent: Math.round((count / total) * 100),
+        percent: total ? Math.round((count / total) * 100) : 0,
       }));
-  }, [p.reviewsList]);
+  }, [visibleReviews]);
+
+  const averageRating = useMemo(() => {
+    const list = visibleReviews.filter((r) => r.status === "PUBLISHED" || !r.status);
+    if (!list.length) return Number(p.rating || 0);
+    const avg = list.reduce((acc, item) => acc + (Number(item.rating) || 0), 0) / list.length;
+    return Number(avg.toFixed(1));
+  }, [visibleReviews, p.rating]);
+
+  const reviewCount = useMemo(
+    () => (visibleReviews ? visibleReviews.length : 0) || p.reviews || 0,
+    [visibleReviews, p.reviews]
+  );
+
+  const handleStartEdit = (review) => {
+    if (!review) return;
+    setEditingReviewId(review.id);
+    setReviewForm({
+      rating: review.rating || 5,
+      title: review.title || "",
+      comment: review.comment || "",
+    });
+  };
+
+  const resetReviewForm = () => {
+    setEditingReviewId(null);
+    setReviewForm({ rating: 5, title: "", comment: "" });
+  };
+
+  const handleSubmitReview = async (event) => {
+    event?.preventDefault?.();
+    if (!reviewsApiEnabled) {
+      toast.error("Live reviews are not available for this product.");
+      return;
+    }
+    if (!isAuthenticated) {
+      toast.error("Please log in to write a review.");
+      return;
+    }
+    if (!hasPurchased) {
+      toast.error("You can review only after purchasing this product.");
+      return;
+    }
+    const payload = {
+      rating: Number(reviewForm.rating) || 0,
+      title: reviewForm.title.trim() || null,
+      comment: reviewForm.comment.trim() || null,
+      productId: p.id,
+      userId: user?.id,
+    };
+    const endpoint = editingReviewId
+      ? `${API_BASE}/reviews/${editingReviewId}`
+      : `${API_BASE}/reviews`;
+    const method = editingReviewId ? "PUT" : "POST";
+    setSubmittingReview(true);
+    try {
+      const res = await authFetch(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Unable to save review");
+      }
+      await fetchReviews();
+      toast.success(editingReviewId ? "Review updated" : "Review submitted");
+      resetReviewForm();
+    } catch (err) {
+      toast.error(err?.message || "Unable to save review");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!reviewsApiEnabled || !reviewId) return;
+    if (!isAuthenticated) {
+      toast.error("Please log in to manage your review.");
+      return;
+    }
+    const confirmed = typeof window !== "undefined" ? window.confirm("Delete your review?") : true;
+    if (!confirmed) return;
+    try {
+      const res = await authFetch(`${API_BASE}/reviews/${reviewId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Unable to delete review");
+      }
+      await fetchReviews();
+      resetReviewForm();
+      toast.success("Review removed");
+    } catch (err) {
+      toast.error(err?.message || "Could not delete review");
+    }
+  };
 
   /* Explore Shades scroll-scrub */
   const [sectionImgIdx, setSectionImgIdx] = useState(0);
@@ -813,7 +1135,10 @@ export default function ProductDetails({ data }) {
 
   const getShadeImageByIndex = (i) => {
     const s = p.shades?.[i];
-    return s?.thumb ? resolveAsset(s.thumb) : gallery[i] || heroSrc;
+    const fromThumb = s?.thumb ? resolveAsset(s.thumb) : "";
+    const fromGallery = Array.isArray(gallery) && gallery[i] ? gallery[i] : "";
+    const fromHero = heroSrc || resolveAsset(p.hero?.image);
+    return fromThumb || fromGallery || fromHero || FALLBACK_IMAGE;
   };
 
   const videoSrc = useMemo(
@@ -821,24 +1146,27 @@ export default function ProductDetails({ data }) {
     [p.videoUrl]
   );
 
+  const relatedProducts = useMemo(() => {
+    const pool = Array.isArray(cevonneProducts) ? cevonneProducts.filter((item) => item.id !== p.id) : [];
+    if (!pool.length) return [];
+    return [...pool].sort(() => 0.5 - Math.random()).slice(0, 4);
+  }, [p.id]);
+
+  const pickProductImage = (item) => {
+    const candidates = [
+      item?.media?.heroImage,
+      item?.hero?.image,
+      Array.isArray(item?.gallery) ? item.gallery[0]?.url || item.gallery[0] : null,
+      Array.isArray(item?.images) ? item.images[0]?.url || item.images[0]?.src : null,
+      item?.media?.gallery?.[0]?.url,
+    ].filter(Boolean);
+    return resolveAsset(candidates[0] || p.hero?.image || gallery[0]);
+  };
+
   return (
     <div ref={pageRef} className="relative" style={toneVars}>
       <style>{`.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
       <BackgroundFader background={pageBg} />
-
-      {loadingProduct && !remoteProduct ? (
-        <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-            Loading product details&hellip;
-          </div>
-        </div>
-      ) : productError && !remoteProduct ? (
-        <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Showing the sample product while we retry fetching the latest data.
-          </div>
-        </div>
-      ) : null}
 
       {/* ===== HERO SECTION ===== */}
       <div className="w-full mt-8 md:mt-12 py-8 md:py-12" data-bg-key="hero">
@@ -867,9 +1195,9 @@ export default function ProductDetails({ data }) {
                           onClick={() => setActiveImage(i)}
                           onMouseEnter={() => setActiveImage(i)}
                           aria-label={`Thumbnail ${i + 1}`}
-                          className={`relative flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center snap-start border-4 bg-white p-0.5 transition-all duration-200 outline-none hover:scale-105 ${isActive
-                            ? "border-[#4a1f61] shadow-[0_0_0_12px_rgba(74,31,97,0.25)] z-10"
-                            : "border-[#d7d2e8] hover:border-[#9b7fb3]"
+                          className={`relative flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center snap-start border bg-white p-1 transition-all duration-200 outline-none hover:scale-105 ${isActive
+                            ? "border-neutral-800 shadow-[0_0_0_6px_rgba(0,0,0,0.08)] z-10"
+                            : "border-[var(--divider)] hover:border-neutral-500"
                             }`}
                         >
                           <img
@@ -913,7 +1241,7 @@ export default function ProductDetails({ data }) {
                       Try Virtually
                     </Link>
 
-                    {/* dots — lifted to avoid chip overlap */}
+                    {/* dots â€” lifted to avoid chip overlap */}
                     {gallery.length > 1 && (
                       <div
                         className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white/80 px-2.5 py-1.5 backdrop-blur-md shadow-md z-20 bottom-4 lg:bottom-14"
@@ -961,7 +1289,7 @@ export default function ProductDetails({ data }) {
                 {p.subtitle && <p className="text-lg text-[var(--fg-muted)] animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">{p.subtitle}</p>}
                 <div className="flex flex-wrap items-center gap-3 text-[var(--fg-muted)] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
                   <RatingStars value={p.rating} />
-                  <span className="text-sm font-medium">({p.rating}) · {p.reviews} reviews</span>
+                  <span className="text-sm font-medium">({averageRating}) · {reviewCount} reviews</span>
                   <Badge variant="outline" className="ml-2 inline-flex items-center bg-[var(--chip-bg)] border-transparent text-[var(--fg)] px-2.5 py-0.5 h-6">
                     <BadgeCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> <span className="translate-y-[1px]">Cevonne Verified</span>
                   </Badge>
@@ -1071,7 +1399,7 @@ export default function ProductDetails({ data }) {
                 <div className="flex flex-col gap-3 mt-2">
                   <div className="flex items-center gap-3">
                     <div className="inline-flex items-center border px-2 border-[var(--divider)]">
-                      <button className="px-3 py-1 text-lg text-[var(--fg)]" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+                      <button className="px-3 py-1 text-lg text-[var(--fg)]" onClick={() => setQty((q) => Math.max(1, q - 1))}>-</button>
                       <input
                         value={qty}
                         onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
@@ -1148,7 +1476,7 @@ export default function ProductDetails({ data }) {
               <section className="grid grid-cols-3 gap-3 text-xs mt-6">
                 <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
                   <Truck className="h-5 w-5 text-[var(--fg-muted)]" />
-                  <span>{p.shipping}</span>
+                  <span>{p.shipping || "Fast, tracked delivery"}</span>
                 </div>
                 <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
                   <ShieldCheck className="h-5 w-5 text-[var(--fg-muted)]" />
@@ -1156,7 +1484,7 @@ export default function ProductDetails({ data }) {
                 </div>
                 <div className="flex flex-col items-center justify-center gap-2 border p-4 border-[var(--divider)] text-[var(--fg)] bg-[var(--card-bg)] text-center h-full">
                   <Recycle className="h-5 w-5 text-[var(--fg-muted)]" />
-                  <span>Easy Returns</span>
+                  <span>{p.returns || "Easy returns"}</span>
                 </div>
               </section>
 
@@ -1184,7 +1512,7 @@ export default function ProductDetails({ data }) {
                     {p.ingredients_highlight?.map((it, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm group">
                         <div className="h-1.5 w-1.5 rounded-full bg-[var(--fg)] mt-2 group-hover:scale-150 transition-transform" />
-                        <span><span className="font-medium text-[var(--fg)]">{it.name}</span> <span className="text-[var(--fg-muted)]">— {it.why}</span></span>
+                        <span><span className="font-medium text-[var(--fg)]">{it.name}</span> <span className="text-[var(--fg-muted)]">â€” {it.why}</span></span>
                       </li>
                     ))}
                   </ul>
@@ -1215,7 +1543,7 @@ export default function ProductDetails({ data }) {
                   </TabsList>
                   <TabsContent value="details" className="mt-4 text-[var(--fg-muted)]">
                     <p className="text-[var(--fg)]">{p.subtitle}</p>
-                    <p>Finish: {p.finish} • Coverage: {p.coverage} • Fragrance: {p.fragrance}.</p>
+                    <p>Finish: {p.finish} â€¢ Coverage: {p.coverage} â€¢ Fragrance: {p.fragrance}.</p>
                   </TabsContent>
                   <TabsContent value="claims" className="mt-4 text-[var(--fg-muted)]">
                     <ul className="list-disc pl-5 space-y-1">{p.claims?.map((c, i) => (<li key={i}>{c}</li>))}</ul>
@@ -1352,39 +1680,45 @@ export default function ProductDetails({ data }) {
       </div >
 
       {/* ===== NEW HOVER REVEAL SECTION (MOVED HERE) ===== */}
-      <section className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 md:mt-24 mb-16" data-bg-key="features">
-        <div className="bg-neutral-50 rounded-2xl p-6 md:p-12 border border-neutral-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+      <section className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 md:mt-20 mb-16" data-bg-key="features">
+        <div className="bg-neutral-50 rounded-2xl p-5 sm:p-8 lg:p-12 border border-neutral-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center">
             {/* Left: Dynamic Image */}
-            <div className="relative aspect-square md:aspect-[4/3] w-full overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-neutral-100">
+            <div className="relative aspect-square sm:aspect-[4/3] w-full max-w-xl mx-auto overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-neutral-100">
               <SmoothImage
                 src={featureList[activeFeatureIndex]?.img}
                 alt={featureList[activeFeatureIndex]?.label}
-                className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                className="h-full w-full object-contain bg-white transition-transform duration-700 hover:scale-105"
               />
             </div>
 
             {/* Right: Hover List */}
-            <div className="flex flex-col justify-center space-y-6 pl-0 md:pl-8">
-              <span className="text-xs font-bold tracking-[0.2em] text-neutral-400 uppercase">
+            <div className="flex flex-col justify-center space-y-4 sm:space-y-6 pl-0 md:pl-4 lg:pl-8">
+              <span className="text-[11px] font-bold tracking-[0.24em] text-neutral-500 uppercase">
                 Lip care that:
               </span>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1 sm:gap-1.5">
                 {featureList.map((feature, index) => (
                   <h3
                     key={feature.label}
                     onMouseEnter={() => setActiveFeatureIndex(index)}
+                    onFocus={() => setActiveFeatureIndex(index)}
+                    tabIndex={0}
                     className={`
-                        text-4xl md:text-5xl lg:text-6xl font-black uppercase cursor-pointer transition-all duration-300
+                        text-[clamp(1.5rem,3.5vw,2.2rem)] sm:text-[clamp(1.75rem,3vw,2.6rem)] lg:text-[clamp(2rem,2.8vw,3rem)]
+                        leading-[1.1] font-extrabold uppercase cursor-pointer transition-all duration-300 tracking-tight
                         ${activeFeatureIndex === index
-                        ? `${feature.color} translate-x-4 scale-105 drop-shadow-sm` // Active State
-                        : "text-neutral-300 hover:text-neutral-400"               // Inactive State
+                        ? `${feature.color} translate-x-2 sm:translate-x-4 drop-shadow-sm`
+                        : "text-neutral-300 hover:text-neutral-400"
                       }
                       `}
                   >
                     {feature.label}
                   </h3>
                 ))}
+                {!featureList.length && (
+                  <p className="text-sm text-neutral-500">Hydrating, nourishing, replenishing care.</p>
+                )}
               </div>
             </div>
           </div>
@@ -1394,43 +1728,43 @@ export default function ProductDetails({ data }) {
       {/* ===== EXPLORE SHADES ===== */}
       {
         !!p.shades?.length && (
-          <section className="w-full px-4 sm:px-6 lg:px-12 py-16 md:py-24" data-bg-key="shades">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)]">Explore Shades</h2>
-              <div className="hidden md:flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
+      <section className="w-full px-4 sm:px-6 lg:px-12 py-16 md:py-24" data-bg-key="shades">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)]">Explore Shades</h2>
+          <div className="hidden md:flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
                     setSectionImgIdx((i) => Math.max(0, i - 1));
                     shadeRefs.current[Math.max(0, sectionImgIdx - 1)]?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }}
-                  aria-label="Previous shade"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
+              }}
+              aria-label="Previous shade"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
                     setSectionImgIdx((i) => Math.min(p.shades.length - 1, i + 1));
                     shadeRefs.current[Math.min(p.shades.length - 1, sectionImgIdx + 1)]?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }}
-                  aria-label="Next shade"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+              }}
+              aria-label="Next shade"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-              {/* Sticky preview */}
-              <div className="lg:sticky lg:top-24 h-fit">
-                <SmoothImage
-                  src={getShadeImageByIndex(sectionImgIdx)}
-                  alt={`Shade ${sectionImgIdx + 1}`}
-                  className="w-full h-auto"
-                />
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Sticky preview */}
+          <div className="lg:sticky lg:top-24 h-fit">
+            <SmoothImage
+              src={getShadeImageByIndex(sectionImgIdx)}
+              alt={`Shade ${sectionImgIdx + 1}`}
+              className="w-full h-auto"
+            />
                 <div className="mt-3 flex items-center justify-center gap-1.5">
                   {p.shades.map((_, i) => (
                     <span key={i} className={`h-1.5 w-4 rounded-full transition-all ${sectionImgIdx === i ? "bg-black w-6" : "bg-neutral-400"}`} />
@@ -1438,8 +1772,8 @@ export default function ProductDetails({ data }) {
                 </div>
               </div>
 
-              {/* Scrollable cards */}
-              <div className="space-y-4">
+          {/* Scrollable cards */}
+          <div className="space-y-4">
                 {p.shades.map((s, i) => (
                   <div
                     key={s.key}
@@ -1462,7 +1796,7 @@ export default function ProductDetails({ data }) {
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-[var(--fg-muted)]">{s.desc}</p>
                   </div>
-                ))}
+            ))}
               </div>
             </div>
           </section>
@@ -1477,10 +1811,16 @@ export default function ProductDetails({ data }) {
             <div>
               <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)] mb-2">Customer Reviews</h2>
               <div className="flex items-baseline gap-4">
-                <span className="text-5xl font-bold text-[var(--fg)]">{p.rating}</span>
+                <span className="text-5xl font-bold text-[var(--fg)]">{averageRating}</span>
                 <div className="flex flex-col">
-                  <RatingStars value={p.rating} />
-                  <span className="text-sm text-[var(--fg-muted)] mt-1">Based on {p.reviews} reviews</span>
+                  <RatingStars value={averageRating} />
+                  <span className="text-sm text-[var(--fg-muted)] mt-1">Based on {reviewCount} reviews</span>
+                  {reviewsLoading && (
+                    <span className="text-xs text-[var(--fg-muted)]">Refreshing reviewsâ€¦</span>
+                  )}
+                  {reviewsError && (
+                    <span className="text-xs text-rose-600">{reviewsError}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1498,10 +1838,121 @@ export default function ProductDetails({ data }) {
 
             <div className="border border-[var(--divider)] bg-[var(--card-bg)] p-6 text-center">
               <h3 className="font-semibold text-[var(--fg)] mb-2">Share your thoughts</h3>
-              <p className="text-sm text-[var(--fg-muted)] mb-4">If you’ve used this product, share your thoughts with other customers</p>
-              <Button variant="outline" className="w-full border-[var(--fg)] text-[var(--fg)] hover:bg-[var(--fg)] hover:text-[var(--card-bg)]">
-                Write a Review
-              </Button>
+              {reviewsApiEnabled ? (
+                isAuthenticated ? (
+                  checkingPurchase ? (
+                    <p className="text-sm text-[var(--fg-muted)] mb-2">Checking your orders…</p>
+                  ) : hasPurchased ? (
+                    <form className="space-y-3 text-left" onSubmit={handleSubmitReview}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-sm text-[var(--fg)]">Rating</Label>
+                          <select
+                            className="w-full rounded-lg border border-[var(--divider)] bg-white px-3 py-2 text-sm text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--fg)]/20"
+                            value={reviewForm.rating}
+                            onChange={(e) =>
+                              setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
+                            }
+                          >
+                            {[5, 4, 3, 2, 1].map((value) => (
+                              <option key={value} value={value}>
+                                {value} star{value > 1 ? "s" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-[var(--fg)]">Title (optional)</Label>
+                          <input
+                            type="text"
+                            maxLength={150}
+                            className="w-full rounded-lg border border-[var(--divider)] bg-white px-3 py-2 text-sm text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--fg)]/20"
+                            value={reviewForm.title}
+                            onChange={(e) => setReviewForm((prev) => ({ ...prev, title: e.target.value }))}
+                            placeholder="Amazing texture and color"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm text-[var(--fg)]">Share details</Label>
+                        <textarea
+                          rows={4}
+                          maxLength={1000}
+                          className="w-full rounded-lg border border-[var(--divider)] bg-white px-3 py-2 text-sm text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--fg)]/20"
+                          value={reviewForm.comment}
+                          onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
+                          placeholder="Tell us about the shade, comfort, wear time…"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" disabled={submittingReview} className="flex-1 min-w-[140px]">
+                          {submittingReview
+                            ? "Saving..."
+                            : editingReviewId
+                              ? "Update review"
+                              : "Submit review"}
+                        </Button>
+                        {editingReviewId ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={resetReviewForm}
+                              disabled={submittingReview}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              onClick={() => handleDeleteReview(editingReviewId)}
+                              disabled={submittingReview}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetReviewForm}
+                            disabled={submittingReview}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                      </div>
+                      {myReview && !editingReviewId && (
+                        <button
+                          type="button"
+                          className="text-xs text-[var(--fg)] underline"
+                          onClick={() => handleStartEdit(myReview)}
+                        >
+                          Edit your existing review
+                        </button>
+                      )}
+                    </form>
+                  ) : (
+                    <p className="text-sm text-[var(--fg-muted)]">
+                      Reviews are available only to customers who purchased this product.
+                    </p>
+                  )
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-[var(--fg-muted)]">Please log in to write a review.</p>
+                    <Link
+                      to="/login"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-[var(--fg)] px-4 py-2 text-sm font-medium text-[var(--fg)] hover:bg-[var(--fg)] hover:text-white transition-colors"
+                    >
+                      Login to review
+                    </Link>
+                  </div>
+                )
+              ) : (
+                <p className="text-sm text-[var(--fg-muted)]">
+                  Live reviews are unavailable for this sample product.
+                </p>
+              )}
             </div>
           </div>
 
@@ -1522,26 +1973,33 @@ export default function ProductDetails({ data }) {
 
             <div className="space-y-8">
               {filteredAndSortedReviews.map((r, i) => (
-                <div key={i} className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                <div key={r.id || i} className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 80}ms` }}>
                   <Avatar className="h-10 w-10 border border-[var(--divider)]">
                     <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${r.author}`} />
                     <AvatarFallback>{r.author?.[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-[var(--fg)]">{r.author}</h4>
-                      <span className="text-xs text-[var(--fg-muted)]">{r.date}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-[var(--fg)]">{r.author}</h4>
+                        {r.userId === user?.id && r.status !== "PUBLISHED" && (
+                          <span className="text-[10px] rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 font-semibold">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-[var(--fg-muted)]">{r.date || "—"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <RatingStars value={r.rating} />
-                      {r.verified && (
+                      {(r.verified || (r.userId === user?.id && hasPurchased)) && (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                           <CheckCircle2 className="h-3 w-3" /> Verified Buyer
                         </span>
                       )}
                     </div>
-                    <h5 className="font-medium text-[var(--fg)]">{r.title}</h5>
-                    <p className="text-[var(--fg-muted)] leading-relaxed text-sm">{r.comment}</p>
+                    {r.title && <h5 className="font-medium text-[var(--fg)]">{r.title}</h5>}
+                    <p className="text-[var(--fg-muted)] leading-relaxed text-sm whitespace-pre-line">{r.comment}</p>
 
                     <div className="flex items-center gap-4 pt-2">
                       <button className="flex items-center gap-1.5 text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors">
@@ -1550,6 +2008,22 @@ export default function ProductDetails({ data }) {
                       <button className="flex items-center gap-1.5 text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors">
                         <MessageSquare className="h-3.5 w-3.5" /> Comment
                       </button>
+                      {r.userId === user?.id && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <button
+                            className="text-[var(--fg)] underline"
+                            onClick={() => handleStartEdit(r)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-rose-600 underline"
+                            onClick={() => handleDeleteReview(r.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1570,7 +2044,7 @@ export default function ProductDetails({ data }) {
         <div className="grid lg:grid-cols-2 gap-10">
           <div className="space-y-4">
             <p className="text-sm font-semibold text-neutral-500 uppercase tracking-[0.2em]">Key Ingredients</p>
-            <h2 className="text-2xl md:text-3xl font-bold text-neutral-900">What’s inside</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-neutral-900">Whatâ€™s inside</h2>
             <div className="space-y-3">
               {(p.ingredients_highlight || []).map((ing, i) => (
                 <div key={ing.name || i} className="border border-neutral-200 rounded-2xl p-4 bg-neutral-50">
@@ -1599,67 +2073,83 @@ export default function ProductDetails({ data }) {
       </section>
 
       {/* ===== YOU MAY ALSO LIKE ===== */}
-      <section className="w-full bg-white py-10 sm:px-6 lg:px-1" data-bg-key="recommendations">
-        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)] mb-8 text-center">You May Also Like</h2>
-        <div className="mx-auto flex w-full snap-x snap-mandatory gap-2 sm:gap-1 overflow-x-auto pb-4 sm:grid sm:max-w-screen-2xl sm:grid-cols-2 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 no-scrollbar">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Link to={`/product/${p.id}`} key={i} className="group relative flex min-w-[85vw] flex-col justify-between overflow-hidden border border-neutral-200 bg-white text-center shadow-sm min-h-[420px] snap-center sm:min-w-0 hover:shadow-lg transition-all duration-300">
-              {/* Image Area */}
-              <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
-                <img
-                  src={resolveAsset(p.hero?.image) || heroSrc}
-                  alt={p.name}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-
-                {/* Badges */}
-                <div className="absolute left-2 top-2 flex flex-col gap-1">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/90 backdrop-blur text-black shadow-sm">
-                    <Video className="h-3 w-3" /> Try On
-                  </span>
-                </div>
-
-                {/* Wishlist */}
-                <button
-                  onClick={(e) => { e.preventDefault(); toggleWishlist(p); }}
-                  className="absolute right-2 top-2 p-1.5 bg-white/80 backdrop-blur hover:bg-white text-neutral-600 hover:text-red-500 transition-colors"
+      {!!relatedProducts.length && (
+        <section className="w-full bg-white py-10 sm:px-6 lg:px-1" data-bg-key="recommendations">
+          <h2 className="text-2xl md:text-3xl font-semibold text-[var(--fg)] mb-8 text-center">You May Also Like</h2>
+          <div className="mx-auto flex w-full snap-x snap-mandatory gap-3 sm:gap-4 overflow-x-auto pb-4 sm:grid sm:max-w-screen-2xl sm:grid-cols-2 sm:pb-0 lg:grid-cols-3 xl:grid-cols-4 no-scrollbar">
+            {relatedProducts.map((rp, i) => {
+              const rpHero = pickProductImage(rp);
+              const rpCurrency = rp.pricing?.currency || rp.currency || p.currency || "â‚¹";
+              const rpPrice = rp.pricing?.price ?? rp.price ?? rp.mrp ?? rp.pricing?.originalValue ?? "";
+              return (
+                <Link
+                  to={`/product/${rp.id || rp.slug || ""}`}
+                  key={(rp.id || rp.slug || "rp") + i}
+                  className="group relative flex min-w-[80vw] sm:min-w-0 flex-col justify-between overflow-hidden border border-neutral-200 bg-white text-center shadow-sm min-h-[400px] snap-center hover:shadow-lg transition-all duration-300"
                 >
-                  <Heart className="h-4 w-4" />
-                </button>
-              </div>
+                  {/* Image Area */}
+                  <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
+                    <img
+                      src={rpHero}
+                      alt={rp.name}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
 
-              {/* Details */}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-medium text-neutral-900 line-clamp-1">{p.name}</h3>
-                  <span className="text-sm font-semibold text-neutral-900">
-                    {p.currency}{p.price ?? p.mrp ?? ""}
-                  </span>
-                </div>
-                <p className="text-xs text-neutral-500 mb-3 line-clamp-2">
-                  {p.subtitle || p.finish || "Beauty essentials"}
-                </p>
+                    {/* Badges */}
+                    <div className="absolute left-2 top-2 flex flex-col gap-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/90 backdrop-blur text-black shadow-sm">
+                        <Video className="h-3 w-3" /> Try On
+                      </span>
+                    </div>
 
-                {/* Shades Preview */}
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(3)].map((_, j) => (
-                    <span key={j} className="h-2.5 w-2.5 rounded-full ring-1 ring-black/5" style={{ backgroundColor: ['#AD0F23', '#BF4A57', '#8E0F1E'][j] }} />
-                  ))}
-                  <span className="text-[10px] text-neutral-500 ml-1">+12</span>
-                </div>
+                    {/* Wishlist */}
+                    <button
+                      onClick={(e) => { e.preventDefault(); toggleWishlist(rp); }}
+                      className="absolute right-2 top-2 p-1.5 bg-white/80 backdrop-blur hover:bg-white text-neutral-600 hover:text-red-500 transition-colors"
+                      aria-label="Save to wishlist"
+                    >
+                      <Heart className="h-4 w-4" />
+                    </button>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  onClick={(e) => { e.preventDefault(); addToCart(p); }}
-                  className="w-full text-xs h-9 border-neutral-200 hover:border-black hover:bg-black hover:text-white transition-colors"
-                >
-                  Add to Cart
-                </Button>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+                  {/* Details */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-medium text-neutral-900 line-clamp-1">{rp.name}</h3>
+                      <span className="text-sm font-semibold text-neutral-900">
+                        {rpCurrency}{rpPrice}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500 mb-3 line-clamp-2">
+                      {rp.subtitle || rp.description?.headline || "Beauty essentials"}
+                    </p>
+
+                    {/* Shades Preview */}
+                    <div className="flex items-center gap-1 mb-4 justify-center">
+                      {[...Array(3)].map((_, j) => (
+                        <span
+                          key={j}
+                          className="h-2.5 w-2.5 rounded-full ring-1 ring-black/5"
+                          style={{ backgroundColor: ['#AD0F23', '#BF4A57', '#8E0F1E'][j] }}
+                        />
+                      ))}
+                      <span className="text-[10px] text-neutral-500 ml-1">+ more</span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      onClick={(e) => { e.preventDefault(); addToCart(rp); }}
+                      className="w-full text-xs h-9 border-neutral-200 hover:border-black hover:bg-black hover:text-white transition-colors"
+                    >
+                      Add to Cart
+                    </Button>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <StickyProductBar
         product={p}

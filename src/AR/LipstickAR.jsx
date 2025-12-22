@@ -1596,6 +1596,8 @@ export default function VirtualTryOn() {
 
   async function startCamera() {
 
+    if (loading) return;
+
     if (!navigator.mediaDevices?.getUserMedia) {
 
       setError(
@@ -1607,6 +1609,8 @@ export default function VirtualTryOn() {
       return;
 
     }
+
+    setLoading(true);
 
 
 
@@ -1621,6 +1625,8 @@ export default function VirtualTryOn() {
           "CouldnGt load vision models. Please allow cdn.jsdelivr.net or unpkg."
 
         );
+
+        setLoading(false);
 
         return;
 
@@ -1688,6 +1694,8 @@ export default function VirtualTryOn() {
 
       window.addEventListener("orientationchange", setupCanvas);
 
+      setLoading(false);
+
     } catch (e) {
 
       console.error(e);
@@ -1695,6 +1703,8 @@ export default function VirtualTryOn() {
       setError("Camera access failed. Please ensure permission is granted.");
 
       stopCamera();
+
+      setLoading(false);
 
 
 
@@ -3250,7 +3260,7 @@ export default function VirtualTryOn() {
 
         {/* START BUTTON */}
 
-        {!started && consentAccepted && (
+        {!started && consentAccepted && !loading && (
 
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30 backdrop-blur-sm">
 
@@ -3265,6 +3275,26 @@ export default function VirtualTryOn() {
               Start Camera
 
             </button>
+
+          </div>
+
+        )}
+
+
+
+        {/* LOADING OVERLAY */}
+
+        {loading && (
+
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+
+            <div className="flex flex-col items-center gap-3 text-white">
+
+              <span className="loading loading-spinner text-white"></span>
+
+              <span className="text-xs uppercase tracking-[0.3em] text-white/80">Loading...</span>
+
+            </div>
 
           </div>
 

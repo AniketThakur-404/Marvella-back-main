@@ -20,6 +20,38 @@ body {
   background: #ffffff;
 }
 
+/* Hide the global scrollbar (keep scrolling functional) */
+*, html, body {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.scrollbar-visible {
+  scrollbar-width: thin;
+}
+
+.scrollbar-visible::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #c3b8b0;
+  border-radius: 999px;
+  border: 3px solid #f4f1ed;
+}
+
 /* Lock the AR route to the viewport to avoid gutters */
 body.ar-no-scroll {
   overflow: hidden;
@@ -38,11 +70,6 @@ body.dashboard-form-lock {
   height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
-}
-
-/* debug outline for overflow detection (remove when done) */
-.debug-outline * {
-  outline: 1px solid rgba(255,0,0,0.04);
 }
 
 :root {

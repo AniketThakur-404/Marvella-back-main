@@ -154,9 +154,9 @@ export default function CheckoutPage() {
         totals: { subtotal, shippingFee, total },
         shipping: shippingData,
         items: cartItems.map((item) => ({
-          id: item.id || item.key,
-          sku: item.sku,
-          name: item.name,
+          id: item.productId || item.id || item.key,
+          sku: item.sku || item.key,
+          name: item.productName || item.name,
           price: Number(item.price) || 0,
           currency: item.currency || currencySymbol,
           quantity: item.quantity || 1,
